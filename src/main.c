@@ -35,38 +35,43 @@ struct pedalSensor {
     const int onLedPin;
     const int ocLedPin;
     const int scLedPin;
+}
 
-    public:
-        float pedalPercentage() const {
-            float percent = ((float) analogRead(inputPin) - zeroPos) / (fullPos - zeroPos);
+
+float pedalSensorPercentage(pedalSensor pedal) const {
+    float percent = ((float) pedal.analogRead(pedal.inputPin) - pedal.zeroPos) / (pedal.fullPos - pedal.zeroPos);
             if (percent < 0.0f) {
                 percent = 0.0f;
             } else if (percent > 1.0f) {
                 percent = 1.0f;
             }
             return percent;
-        }
-
-        // Checks for a Short Circuit by reading the value of the sensor and comparing it to the threshold defined above
-        bool checkOpenCircuit() const {
-            bool isOpenCircuit = analogRead(inputPin) < ocThreshold;
-            digitalWrite(ocLedPin, isOpenCircuit);
-            #ifdef DEBUGGING
-            printf("Pedal %d: Open Circuit %s\n", inputPin, isOpenCircuit ? "detected" : "not detected");
-            #endif
-            return isOpenCircuit;
-        }
-
-        // Checks for a Short Circuit by reading the value of the sensor and comparing it to the threshold defined above
-        bool checkShortCircuit() const {
-            bool isShortCircuit = analogRead(inputPin) > scThreshold;
-            digitalWrite(scLedPin, isShortCircuit);
-            #ifdef DEBUGGING
-            printf("Pedal %d: Short Circuit %s\n", inputPin, isShortCircuit ? "detected" : "not detected");
-            #endif
-            return isShortCircuit;
-        }
 }
+
+// Checks for a Short Circuit by reading the value of the sensor and comparing it to the threshold defined above
+bool checkOpenCircuit(pedalSensor pedal) const {
+    bool isOpenCircuit = pedal.analogRead(pedal.inputPin) < pedal.ocThreshold;
+    digitalWrite(pedal.ocLedPin, isOpenCircuit);
+    #ifdef DEBUGGING
+    printf("Pedal %d: Open Circuit %s\n", pedal.inputPin, isOpenCircuit ? "detected" : "not detected");
+    #endif
+    return isOpenCircuit;
+}
+
+// Checks for a Short Circuit by reading the value of the sensor and comparing it to the threshold defined above
+bool checkShortCircuit(PedalSensor pedal) const {
+    bool isShortCircuit = analogRead(pdeal.inputPin) > pedal.scThreshold;
+    digitalWrite(pedal.scLedPin, isShortCircuit);
+    #ifdef DEBUGGING
+    printf("Pedal %d: Short Circuit %s\n", pedal.inputPin, isShortCircuit ? "detected" : "not detected");
+    #endif
+    return isShortCircuit;
+}
+
+// Checks both faults for a pedal
+bool checkRangeFaults(pedalSensor pedal) const {
+      return checkOpenCircuit(pedal) || checkShortCircuit(pedal);
+    }
 
 // Pedal sensor1 WRITE DOWN RIGHT OR LEFT WHEN WE FIGURE IT OUT also update values
 const pedalSensor p1 = {
@@ -88,7 +93,19 @@ const pedalSensor p2 = {
     0
 };
 
-const pedals pedalSensor[] = [p1, p2];
+const pedalSensor[] pedals = [p1, p2];
+
+//******
+// This would be where pedal map was defined with old apps
+//  */
+
+
+// By rules this will trip when
+bool pedalAgreementFault() {
+
+}
+
+
 
 /* The devicetree node identifier for the "led0" alias. */
 
