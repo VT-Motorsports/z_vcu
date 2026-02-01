@@ -22,6 +22,7 @@
 #include "heap_init.h"
 #include "diagnostic.h"
 #include "adc.h"
+#include "system.h"
 #include "vehicle_state.h"
 #include "hardware.h"
 
@@ -194,8 +195,6 @@ CAN_MSGQ_DEFINE(main_can_rx_msgq, 1000);
 // #include <zephyr/kernel.h>
 // #include <zephyr/drivers/gpio.h>
 
-#define LED0_NODE DT_ALIAS(led0)
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 
 void send_heartbeat(Hardware& hw) {
     static uint32_t heartbeat_counter = 0;
@@ -218,7 +217,6 @@ void send_heartbeat(Hardware& hw) {
     
     int ret = hw.can1.send(&heartbeat_frame, K_NO_WAIT);
     if (ret == 0) {
-        LOG_INF("Heartbeat sent: %d", heartbeat_counter);
     } else {
         LOG_ERR("Heartbeat send failed: %d", ret);
     }
@@ -229,32 +227,38 @@ void send_heartbeat(Hardware& hw) {
 
 
 int main(void) {
-    LOG_INF("*** VCU BOOT TEST ***\n");
+    LOG_INF("***VCU ENTERED MAIN***\n");
     
-    gpio_pin_configure_dt(&led, GPIO_OUTPUT);
 
-    VehicleState vehicle; 
-    Hardware hardware(vehicle); 
-    hardware.init(); 
-    diagnostics_init(); 
+    static VehicleState vehicle; 
+    static Hardware hardware(vehicle); 
+    static System system; 
+    
+    LOG_INF("=== VCU Starting ===");
+    
+    // Initialize system resources
+    if (system.init() != 0) {
+        LOG_ERR("System init failed!");
+        return -1;
+    }
+    
+    // Initialize hardware
+    if (hardware.init() != 0) {
+        LOG_ERR("Hardware init failed!");
+        return -2;
+    }
+    
+    // Start diagnostics monitoring
+    if (system.start_diagnostics(&hardware) != 0) {
+        LOG_ERR("Failed to start diagnostics!");
+        return -3;
+    }
+    
+    LOG_INF("=== VCU Ready ===");
 
     while(1){
-    // Pattern 1: Yellow, Red, Green ON | Orange, Blue OFF
-    hardware.led_yellow.set(true);
-    hardware.led_orange.set(false);
-    hardware.led_red.set(true);
-    hardware.led_blue.set(false);
-    hardware.led_green.set(true);
+    hardware.led_green.toggle(); 
     send_heartbeat(hardware); 
-    k_msleep(500);
-    
-    // Pattern 2: Orange, Blue ON | Yellow, Red, Green OFF
-    hardware.led_yellow.set(false);
-    hardware.led_orange.set(true);
-    hardware.led_red.set(false);
-    hardware.led_blue.set(true);
-    hardware.led_green.set(false);
-        send_heartbeat(hardware); 
 
     k_msleep(500);
         
