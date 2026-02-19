@@ -1,7 +1,9 @@
 #pragma once
-#include "vehicle_state.h"
 #include <zephyr/drivers/can.h>
 #include <zephyr/kernel.h>
+
+#include "vehicle_state.h"
+#include "dti_decoders.h"
 
 using frame_handler_t = void (*)(const struct can_frame *frame, volatile VehicleState *vehicle);
 
@@ -19,6 +21,8 @@ class CanBus
 
     static void can1_rx_isr(const struct device *dev, struct can_frame *frame, void *self_ptr);
     static void can2_rx_isr(const struct device *dev, struct can_frame *frame, void *self_ptr);
+    void dispatch(const struct can_frame *frame);
+    int register_handlers();
 
     frame_handler_t bus_handlers[2048]{nullptr};
 

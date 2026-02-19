@@ -88,4 +88,31 @@ class VehicleState
 {
   public:
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
+
+    struct
+    {
+        struct
+        {
+            float channel0;
+            float channel1;
+            float channel2;
+            float channel3;
+            float channel4;
+            float channel5;
+            float channel6;
+            float channel7;
+        } Voltage;
+
+        struct
+        {
+            float channel0;
+            float channel1;
+            float channel2;
+            float channel3;
+            float channel4;
+            float channel5;
+            float channel6;
+            float channel7;
+        } Raw;
+    } Analog;
 };
