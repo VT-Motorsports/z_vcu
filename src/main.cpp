@@ -3,6 +3,7 @@
 #include <syscalls/can.h>
 #include <stdbool.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/_intsup.h>
 #include <zephyr/debug/cpu_load.h>
@@ -18,10 +19,7 @@
 #include <zephyr/types.h>
 
 #include "adc.h"
-#include "diagnostic.h"
-#include "globals.h"
 #include "hardware.h"
-#include "heap_init.h"
 #include "system.h"
 #include "vehicle_state.h"
 
