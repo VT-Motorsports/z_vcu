@@ -7,18 +7,22 @@
 // #include <zephyr/logging\log.h>
 // #include <zephyr/types.h>
 
-// struct PedalSensor {
-//   const int inputPin;
-//   const int zeroPos;
-//   const int fullPos;
-//   const int onLedPin;
-//   const int ocLedPin;
-//   const int scLedPin;
+// class PedalSensor
+// {
+//   private:
+//     const int inputPin = 0;
+//     const int zeroPos = 0;
+//     const int fullPos = 0;
+//     const int onLedPin = 0;
+//     const int ocLedPin = 0;
+//     const int scLedPin = 0;
 
-//   float pedalPercentage();
-//   bool checkOpenCircuit();
-//   bool checkShortCircuit();
-//   bool checkRangeFaults();
+//     float pedalPercentage();
+//     bool checkOpenCircuit();
+//     bool checkShortCircuit();
+//     bool checkRangeFaults();
+
+//   public:
 // };
 
 // bool pedalAgreementFault(PedalSensor p1, PedalSensor p2);

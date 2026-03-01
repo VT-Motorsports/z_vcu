@@ -39,8 +39,7 @@ class Hardware
     CanBus can2;
 
     int init();
-    int updateAllAnalogChannels();
-    int updateAnalogChannel(AdcChannel &chan, float &destination);
+    uint16_t getADCValue(uint8_t channel);
 
   private:
     VehicleState *vehicle;

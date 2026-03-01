@@ -2,6 +2,7 @@
 #pragma once
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
+#include "PedalSensors.h"
 
 enum Corner : uint8_t
 {
@@ -84,35 +85,85 @@ struct DTI_Inverter
     uint64_t last_rx_time_ms;
 };
 
+struct Analog
+{
+    uint16_t channels[8];
+};
+
+enum APPS_ERRORS
+{
+    PEDAL_AGREEMENT = 0,
+    SHORT_CIRCUIT_P1 = 1,
+    SHORT_CIRCUIT_P2 = 2,
+    OPEN_CIRCUIT_P1 = 3,
+    OPEN_CIRCUIT_P2 = 4,
+    BRAKE_OVERLAP = 5,
+    NUM_ERRORS = 8,
+};
+
+enum PEDAL_SLOPE_DIRECTION
+{
+    POSITIVE,
+    NEGATIVE
+};
+
+namespace APPS_CONSTEXPRS
+{
+static constexpr uint16_t calculateRange(uint16_t highThreshold, uint16_t lowThreshold)
+{
+    return (highThreshold > lowThreshold) ? (highThreshold - lowThreshold) : (lowThreshold - highThreshold);
+}
+
+static constexpr PEDAL_SLOPE_DIRECTION PEDAL_SLOPE_DIRECTION(uint16_t highThreshold, uint16_t lowThreshold)
+{
+    return (highThreshold > lowThreshold) ? POSITIVE : NEGATIVE;
+}
+
+} // namespace APPS_CONSTEXPRS
+
+struct APPS_data
+{
+    bool errors[APPS_ERRORS::NUM_ERRORS];
+    bool faulted;
+
+    // calibration values, constexpr set at compile time
+    static constexpr int pedal1_adc_channel_num = 0;
+    static constexpr int pedal2_adc_channel_num = 1;
+    static constexpr uint16_t pedal1_low_threshold = 10000;
+    static constexpr uint16_t pedal2_low_threshold = 10000;
+    static constexpr uint16_t pedal1_high_threshold = 20000;
+    static constexpr uint16_t pedal2_high_threshold = 20000;
+
+    static constexpr int brake_main_adc_channel_num = 0;
+
+    // other calibration values
+    static constexpr float agreement_threshold = 0.10f; // 10% disagreement
+    static constexpr int agreement_timeout_ms = 100;
+    static constexpr float brake_on_threshold = 0.25f;  // throttle % to latch brake fault
+    static constexpr float brake_off_threshold = 0.05f; // throttle % to clear brake fault
+
+    // constexpr values that are calculated at compiletime
+    static constexpr uint16_t pedal1_range_width =
+        APPS_CONSTEXPRS::calculateRange(pedal1_high_threshold, pedal1_low_threshold);
+    static constexpr uint16_t pedal2_range_width =
+        APPS_CONSTEXPRS::calculateRange(pedal2_high_threshold, pedal2_low_threshold);
+    static constexpr PEDAL_SLOPE_DIRECTION pedal1_slope_direction =
+        APPS_CONSTEXPRS::PEDAL_SLOPE_DIRECTION(pedal1_high_threshold, pedal1_low_threshold);
+    static constexpr PEDAL_SLOPE_DIRECTION pedal2_slope_direction =
+        APPS_CONSTEXPRS::PEDAL_SLOPE_DIRECTION(pedal2_high_threshold, pedal2_low_threshold);
+
+    // IN PERCENTAGE, translation of input voltages to output command AFTER APPS processing
+    float commandedTorquePercentage;
+    float pedal1_percent;
+    float pedal2_percent;
+};
+
+// struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
+// classes that interact with vehicle state should refer to this struct as source of truth
 class VehicleState
 {
   public:
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
-
-    struct
-    {
-        struct
-        {
-            float channel0;
-            float channel1;
-            float channel2;
-            float channel3;
-            float channel4;
-            float channel5;
-            float channel6;
-            float channel7;
-        } Voltage;
-
-        struct
-        {
-            float channel0;
-            float channel1;
-            float channel2;
-            float channel3;
-            float channel4;
-            float channel5;
-            float channel6;
-            float channel7;
-        } Raw;
-    } Analog;
+    Analog analogIf;
+    APPS_data APPSIf;
 };

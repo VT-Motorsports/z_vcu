@@ -1,7 +1,9 @@
 // hardware.cpp
 #include "hardware.h"
+#include "adc.h"
 #include "vehicle_state.h"
 #include "zephyr/drivers/can.h"
+#include <cstdint>
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
 
@@ -109,23 +111,17 @@ int Hardware::initializeADCs()
     return 0;
 }
 
-int Hardware::updateAllAnalogChannels()
+uint16_t Hardware::getADCValue(uint8_t channel)
 {
-    this->vehicle->Analog.Voltage.channel0 = this->adc_chan0.read_voltage();
-    this->vehicle->Analog.Voltage.channel1 = this->adc_chan1.read_voltage();
-    this->vehicle->Analog.Voltage.channel2 = this->adc_chan2.read_voltage();
-    this->vehicle->Analog.Voltage.channel3 = this->adc_chan3.read_voltage();
-    this->vehicle->Analog.Voltage.channel4 = this->adc_chan4.read_voltage();
-    this->vehicle->Analog.Voltage.channel5 = this->adc_chan5.read_voltage();
-    this->vehicle->Analog.Voltage.channel6 = this->adc_chan6.read_voltage();
-    this->vehicle->Analog.Voltage.channel7 = this->adc_chan7.read_voltage();
+    static AdcChannel *const adc_table[8] = {&adc_chan0, &adc_chan1, &adc_chan2, &adc_chan3,
+                                             &adc_chan4, &adc_chan5, &adc_chan6, &adc_chan7};
 
-    return 0;
-}
-int Hardware::updateAnalogChannel(AdcChannel &chan, float &destination)
-{
-    destination = chan.read_voltage();
-    return 0;
+    if (channel >= 8)
+    {
+        return -1;
+    }
+
+    return adc_table[channel]->read_raw();
 }
 
 int Hardware::initializeGPIOs()

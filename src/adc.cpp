@@ -37,7 +37,7 @@ int AdcChannel::init(const struct device *adc_dev, uint8_t channel_id, int resol
     sequence_.calibrate = false;
 
     int ret = adc_channel_setup(adc_dev_, &channel_cfg_);
-    if (ret != 0)
+    [[unlikely]] if (ret != 0)
     {
         LOG_ERR("Failed to setup ADC channel %d: %d", channel_id_, ret);
         return ret;
@@ -91,4 +91,9 @@ void AdcChannel::set_test_voltage(float voltage)
     // Reverse the divider calculation: ADC sees voltage / DIVIDER_RATIO
     float adc_voltage = voltage / DIVIDER_RATIO;
     buffer_[0] = (int16_t)((adc_voltage / vref_) * (1 << resolution_));
+}
+
+float AdcChannel::get_divider_ratio()
+{
+    return this->DIVIDER_RATIO;
 }
