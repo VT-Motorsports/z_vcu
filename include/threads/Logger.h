@@ -26,6 +26,6 @@ class LoggerTask : public PeriodicTask<LoggerTask>
     void run();
 };
 
-void start_logger_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms = 50, int priority = 2);
+void start_logger_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms = 50, int priority = 5);
 
 LoggerTask &get_logger_task();

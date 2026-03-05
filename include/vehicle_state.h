@@ -3,16 +3,40 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
 #include <optional>
+#include <atomic>
 
 enum class VSM_STATES
 {
-    POST,
-    READY,
-    PRECHARGING,
-    HV_ACTIVE,
-    ARMED,
-    RTDS,
-    DRIVE
+
+    // Default state that is initialized to, not expected to return to unless terminal fault
+    POST = 0,
+
+    // Wait state with PREHARGE relay closed, waiting to see bus voltage rise when SC closes
+    READY = 1,
+
+    // Interim State when bus voltage rises. IF bus voltage doenst rise fast enough, terminal fault is thrown
+    PRECHARGING = 2,
+
+    // Post PRECHARGING, close AIR+, and verify that system is nominal
+    // Critical safety section
+    HV_ACTIVE = 3,
+
+    // State to wait for driver to push BRAKE + START button
+    ARMED = 4,
+
+    // Interim state where buzzer is played and RTDS checks are completed
+    RTDS = 5,
+
+    // DRIVE mode, nominal with torque commands finally enabled
+    DRIVE = 6,
+
+    // FAULT mode, vehicle enters safe state with DRIVE disabled,Torque zeroed and all HV contactors opened
+    FAULT = 7,
+
+    // If HV gets disabled without AMS, IMD or BSPD signal being thrown, we enter SHUTDOWN, which then resets to READY
+    // state after vehicle reaches 0 speed, 0 intermediate bus voltage. CAR must RETURN TO startup state, akin to
+    // sys_reboot() AIRs CONTACTORS MUST BE RESET
+    SHUTDOWN = 8,
 };
 
 enum Corner : uint8_t
@@ -177,6 +201,13 @@ struct APPS_data
     static const bool torqueVectoringEnabled = false;
 };
 
+struct VSM_CONFIG
+{
+    static constexpr float max_precharging_time = 3000;
+    static constexpr float max_inverter_voltage_delta = 100;
+    static constexpr float nominal_bus_votlage = 302;
+};
+
 // struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
 // classes that interact with vehicle state should refer to this struct as source of truth
 class VehicleState
@@ -185,7 +216,8 @@ class VehicleState
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
     Analog analogIf;
     APPS_data APPSIf;
-    const VSM_STATES *VSM_STATE = nullptr;
+    const std::atomic<VSM_STATES> *VSM_STATE = nullptr;
+    VSM_CONFIG VSM_If;
 
   private:
 };

@@ -31,6 +31,6 @@ class APPSTask : public PeriodicTask<APPSTask>
 };
 
 // Start the APPS task. Stack and task instance are owned inside APPS.cpp.
-void start_apps_task(VehicleState *v, Hardware *hw, uint32_t period_ms = 100, int priority = 5);
+void start_apps_task(VehicleState *v, Hardware *hw, uint32_t period_ms = 10, int priority = 5);
 
 APPSTask &get_apps_task();
