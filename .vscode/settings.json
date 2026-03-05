@@ -25,7 +25,8 @@
         "--completion-style=detailed",
         "--header-insertion=iwyu",
         "--pch-storage=memory",
-        "--log=error"
+        "--log=error",
+        "--query-driver=**arm-zephyr-eabi-g++*"
     ],
     
 

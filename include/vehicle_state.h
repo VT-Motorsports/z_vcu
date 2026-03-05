@@ -2,6 +2,18 @@
 #pragma once
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
+#include <optional>
+
+enum class VSM_STATES
+{
+    POST,
+    READY,
+    PRECHARGING,
+    HV_ACTIVE,
+    ARMED,
+    RTDS,
+    DRIVE
+};
 
 enum Corner : uint8_t
 {
@@ -173,4 +185,7 @@ class VehicleState
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
     Analog analogIf;
     APPS_data APPSIf;
+    const VSM_STATES *VSM_STATE = nullptr;
+
+  private:
 };

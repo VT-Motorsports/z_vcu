@@ -25,6 +25,7 @@ int main(void)
         return -1;
     }
 
+    // before initializing any threads we guarantee that hardware has initialized and APIs are available
     if (hardware.init() != 0)
     {
         LOG_ERR("Hardware init failed!");
@@ -37,6 +38,7 @@ int main(void)
     // Start the system diagnostics task (1000 ms period, priority 10).
     start_diagnostics_task(&system, &hardware, &vehicle);
 
+    // starts logger task that broadcasts data from vehicle_state onto CANBUS2
     start_logger_task(&system, &hardware, &vehicle);
 
     LOG_INF("=== VCU Ready ===");

@@ -14,9 +14,11 @@ CompileFlags:
     -Ibuild/zephyr/include/generated,
     -fmacro-backtrace-limit=0,
     -Wno-vla-cxx-extension,
-    -std=gnu++20,
+    -std=gnu++2b,
     -xc++,
-
+    # ARM GCC implicit C++ stdlib paths — not in compile_commands.json
+    -IC:/FORMULA/Code/VCU/vcu_codebase/zephyr-sdk/zephyr-sdk-0.16.5-1/arm-zephyr-eabi/arm-zephyr-eabi/include/c++/12.2.0,
+    -IC:/FORMULA/Code/VCU/vcu_codebase/zephyr-sdk/zephyr-sdk-0.16.5-1/arm-zephyr-eabi/arm-zephyr-eabi/include/c++/12.2.0/arm-zephyr-eabi,
   ]
 Diagnostics:
   Suppress: ['-Wunused-includes']
