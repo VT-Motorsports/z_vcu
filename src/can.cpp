@@ -1,9 +1,9 @@
 #include "can.h"
-#include "dti_decoders.h"
+#include "can_decoders/dti_decoders.h"
 
 #include <zephyr/logging/log.h>
 
-#include "dti_decoders.h"
+#include "can_decoders/dti_decoders.h"
 #include "stm32h753xx.h"
 #include "vehicle_state.h"
 #include "zephyr/drivers/can.h"

@@ -26,4 +26,3 @@ file(GLOB_RECURSE APP_SOURCES
 # Add sources to app target
 target_sources(app PRIVATE ${APP_SOURCES})
 
-

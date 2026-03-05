@@ -1,7 +1,7 @@
 #pragma once
 
 #include "hardware.h"
-#include "periodic_task.h"
+#include "threads/periodic_task.h"
 #include "vehicle_state.h"
 
 class APPSTask : public PeriodicTask<APPSTask>
@@ -20,6 +20,7 @@ class APPSTask : public PeriodicTask<APPSTask>
     bool brake_fault_latched_ = false;
 
     void on_init();
+    void on_deadline_miss();
     void run();
 
     float readPedalPercent(uint16_t raw, uint16_t low, uint16_t range, PEDAL_SLOPE_DIRECTION slope);

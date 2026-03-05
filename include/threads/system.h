@@ -1,7 +1,7 @@
 #pragma once
 
 #include "hardware.h"
-#include "periodic_task.h"
+#include "threads/periodic_task.h"
 #include <zephyr/debug/cpu_load.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/mem_stats.h>

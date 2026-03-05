@@ -4,7 +4,7 @@
 // Reference: DTI CAN Manual V2.5
 // Byte order: Big Endian (Motorola), 8-byte fixed length, unused = 0xFF
 
-#include "dti_decoders.h"
+#include "can_decoders/dti_decoders.h"
 
 // ============================================================================
 // Internal helpers — one per packet type, parameterized by corner

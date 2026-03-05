@@ -14,6 +14,9 @@ enum Corner : uint8_t
 
 struct DTI_Inverter
 {
+
+    static constexpr int16_t max_ac_current_x10 = 1000; // 100 A_pk — tune per motor
+
     uint8_t node_id;
 
     // Packet 0x1F: General Data 6
@@ -82,6 +85,10 @@ struct DTI_Inverter
     int16_t avail_min_dc_current; // [A_dc * 10]
 
     uint64_t last_rx_time_ms;
+
+    // TX command fields — written by control task, read by encoders
+    int16_t cmd_ac_current;   // [A_pk * 10], positive = motoring, negative = regen
+    uint8_t cmd_drive_enable; // 0 = disabled, 1 = enabled
 };
 
 struct Analog
@@ -155,6 +162,7 @@ struct APPS_data
     float commandedTorquePercentage;
     float pedal1_percent;
     float pedal2_percent;
+    static const bool torqueVectoringEnabled = false;
 };
 
 // struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
