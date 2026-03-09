@@ -64,8 +64,18 @@ void VSMTask::run()
     }
     break;
 
-    case VSM_STATES::HV_ACTIVE:
-        break;
+    case VSM_STATES::HV_ACTIVE: {
+        float voltage = check_inverter_voltage_skew();
+
+        if (voltage < vehicle()->VSM_If.nominal_bus_votlage * 0.95f)
+        {
+            STATE = VSM_STATES::FAULT;
+            LOG_ERR("BUS VOLTAGE DROPPED AFTER PRECHARGING");
+        }
+
+        if ()
+    }
+    break;
 
     case VSM_STATES::ARMED:
         break;
