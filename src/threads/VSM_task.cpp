@@ -73,7 +73,10 @@ void VSMTask::run()
             LOG_ERR("BUS VOLTAGE DROPPED AFTER PRECHARGING");
         }
 
-        if ()
+        if (voltage >= vehicle()->VSM_If.nominal_bus_votlage * 0.99f)
+        {
+            STATE = VSM_STATES::ARMED;
+        }
     }
     break;
 
@@ -125,7 +128,7 @@ float VSMTask::check_inverter_voltage_skew()
     for (int i = 0; i < 4; i++)
     {
         int curVoltage = vehicle()->INVERTERS[i].input_voltage;
-        averageVoltage += curVoltage / 4.0;
+        averageVoltage += curVoltage / 4.0f;
 
         if (curVoltage < minVoltage)
         {
