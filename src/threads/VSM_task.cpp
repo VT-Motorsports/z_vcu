@@ -1,9 +1,14 @@
 #include "threads/VSM_task.h"
+#include "can_decoders/dti_encoders.h"
 #include "vehicle_state.h"
+#include "zephyr/drivers/can.h"
 #include "zephyr/kernel.h"
 #include "zephyr/sys/reboot.h"
+#include <zephyr/sys/__assert.h>
 #include <cfloat>
 #include <climits>
+#include <csetjmp>
+#include <sys/_intsup.h>
 #include <zephyr/logging/log.h>
 #include <zephyr/irq.h>
 
@@ -12,25 +17,54 @@ K_THREAD_STACK_DEFINE(VSM_stack, 2048);
 
 static VSMTask VSM_task_instance;
 
+void VSMTask::throw_vehicle_fault(int fault_code)
+{
+    STATE = VSM_STATES::FAULT;
+
+    LOG_ERR("CRITICAL VEHICLE FAULT WAS THROWN, GOING TO FAULT STATE");
+    longjmp(fault_jmp_, fault_code);
+}
+
+void VSMTask::transmit_drive_enables()
+{
+    for (auto c : vehicle()->INVERTERS)
+    {
+        c.drive_enable = DATA.drive_enabled;
+    }
+
+    struct can_frame drive_enable;
+    encode_dti_fl_set_drive_enable(&drive_enable, vehicle());
+    hardware_->can1.send(&drive_enable, K_MSEC(1));
+
+    encode_dti_fr_set_drive_enable(&drive_enable, vehicle());
+    hardware_->can1.send(&drive_enable, K_MSEC(1));
+
+    encode_dti_rl_set_drive_enable(&drive_enable, vehicle());
+    hardware_->can1.send(&drive_enable, K_MSEC(1));
+
+    encode_dti_rr_set_drive_enable(&drive_enable, vehicle());
+    hardware_->can1.send(&drive_enable, K_MSEC(1));
+}
+
 void VSMTask::run()
 {
+
+    int fault_code = setjmp(fault_jmp_);
+    if (fault_code != 0)
+    {
+        STATE = VSM_STATES::FAULT;
+    }
     switch (STATE)
     {
     case VSM_STATES::POST: {
+        __ASSERT(system_ && hardware_ && vehicle(),
+                 "System or Hardware or Vehicle struct not initialized before starting VSM. Rebooting")
 
-        if (!system_ || !hardware_ || !vehicle())
-        {
-            LOG_ERR("System or Hardware or Vehicle struct not initialized before starting VSM. Rebooting");
-            sys_reboot(SYS_REBOOT_COLD);
-        }
-        else
-        {
-            float voltage = check_inverter_voltage_skew();
+        float voltage = check_inverter_voltage_skew();
 
-            if (voltage < 5.0f)
-            {
-                STATE = VSM_STATES::READY;
-            }
+        if (voltage < 5.0f)
+        {
+            STATE = VSM_STATES::READY;
         }
     }
     break;
@@ -43,21 +77,22 @@ void VSMTask::run()
 
         if (voltage > 20.0f)
         {
-            precharging_start_time = k_uptime_get();
+            DATA.precharging_start_time = k_uptime_get();
             this->STATE = VSM_STATES::PRECHARGING;
         }
     }
     break;
     case VSM_STATES::PRECHARGING: {
 
-        if (k_uptime_get() > (precharging_start_time + vehicle()->VSM_If.max_precharging_time))
+        if (k_uptime_get() > (DATA.precharging_start_time + DATA.max_precharging_time))
         {
             this->STATE = VSM_STATES::FAULT;
+            throw_vehicle_fault(static_cast<int>(VSM_FAULTS::PRECHARGING_TOOK_TOO_LONG));
         }
         float voltage = check_inverter_voltage_skew();
 
         // NEEDS TO BE UPDATED TO READ LIVE BMS VOLTAGE, WILL NOT WORK AS SoC changes
-        if (voltage > vehicle()->VSM_If.nominal_bus_votlage * 0.95f)
+        if (voltage > DATA.nominal_bus_votlage * 0.95f)
         {
             STATE = VSM_STATES::HV_ACTIVE;
         }
@@ -67,35 +102,88 @@ void VSMTask::run()
     case VSM_STATES::HV_ACTIVE: {
         float voltage = check_inverter_voltage_skew();
 
-        if (voltage < vehicle()->VSM_If.nominal_bus_votlage * 0.95f)
+        // close AIRs here
+        if (voltage < DATA.nominal_bus_votlage * 0.95f)
         {
             STATE = VSM_STATES::FAULT;
-            LOG_ERR("BUS VOLTAGE DROPPED AFTER PRECHARGING");
+            throw_vehicle_fault(static_cast<int>(VSM_FAULTS::BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING));
         }
 
-        if (voltage >= vehicle()->VSM_If.nominal_bus_votlage * 0.99f)
+        if (voltage >= DATA.nominal_bus_votlage * 0.99f)
         {
             STATE = VSM_STATES::ARMED;
         }
     }
     break;
 
-    case VSM_STATES::ARMED:
-        break;
+    case VSM_STATES::ARMED: {
+        bool driver_switch;
+        if (hardware_->drive_enable.get(&driver_switch) != 0)
+        { // throw runtime except *\}
+        }
 
-    case VSM_STATES::RTDS:
-        break;
+        if (driver_switch)
+        {
+            STATE = VSM_STATES::RTDS;
+            DATA.precharging_start_time = k_uptime_get();
+        }
+    }
+    break;
 
-    case VSM_STATES::DRIVE:
-        break;
+    case VSM_STATES::RTDS: {
+
+        if (k_uptime_get() > DATA.RTDS_start_time - (DATA.RTDS_sound_length * 3))
+        {
+            DATA.RTDS_start_time = k_uptime_get();
+        }
+
+        if (k_uptime_delta(&DATA.RTDS_start_time) > DATA.RTDS_sound_length)
+        {
+            STATE = VSM_STATES::DRIVE;
+        }
+    }
+
+    break;
+
+    case VSM_STATES::DRIVE: {
+        transmit_drive_enables();
+
+        // calculate in local variable to be loaded in atomically later.
+        int local_current_calculated = 0;
+        for (auto c : vehicle()->INVERTERS)
+        {
+            local_current_calculated += c.dc_current;
+        }
+
+        // atomic operation for irq protection
+        DATA.inverter_current_summed.store(local_current_calculated);
+    }
+    break;
 
     case VSM_STATES::SHUTDOWN:
         break;
 
-    case VSM_STATES::FAULT:
+    case VSM_STATES::FAULT: {
+        static int fault_code_latched = -1;
 
-        break;
+        DATA.drive_enabled = 0;
+        transmit_drive_enables();
+        if (fault_code != 0)
+        {
+            fault_code_latched = fault_code;
+        }
+
+        // SAFE AIR CTRL
+        // zero out tq commands
+
+        LOG_ERR("IN FAULTED STATE WITH CODE: %d", fault_code_latched);
     }
+    break;
+
+        __ASSERT(false, "UNREACHABLE STATEMENT IN VSM ");
+    }
+
+    return;
 }
 
 VSMTask &get_VSM_task()
@@ -105,6 +193,7 @@ VSMTask &get_VSM_task()
 void VSMTask::injectVehicleState(void)
 {
     this->vehicle()->VSM_STATE = &this->STATE;
+    this->vehicle()->VSM_If = &this->DATA;
 }
 
 void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms, int priority)
@@ -116,7 +205,7 @@ void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_
     LOG_INF("VSM task started (%u ms period)", period_ms);
 }
 
-float VSMTask::check_inverter_voltage_skew()
+[[nodiscard]] float VSMTask::check_inverter_voltage_skew()
 {
 
     float averageVoltage = 0;
@@ -142,10 +231,11 @@ float VSMTask::check_inverter_voltage_skew()
 
     irq_unlock(key);
 
-    [[unlikely]] if (fabsf(maxVoltage - minVoltage) > vehicle()->VSM_If.max_inverter_voltage_delta)
+    [[unlikely]] if (fabsf(maxVoltage - minVoltage) > DATA.max_inverter_voltage_delta)
     {
         LOG_ERR("Voltage SKEW TOO GREAT across Inverters");
         STATE = VSM_STATES::FAULT;
+        throw_vehicle_fault(120);
     }
     return averageVoltage;
 }

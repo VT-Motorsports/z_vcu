@@ -81,7 +81,6 @@ void APPSTask::run()
 
         for (Corner c = FRONT_LEFT; c < NUM_CORNERS; c = static_cast<Corner>(1 + static_cast<int>(c)))
         {
-            vehicle()->INVERTERS[c].cmd_drive_enable = apps.faulted ? 0u : 1u;
             vehicle()->INVERTERS[c].cmd_ac_current = cmd;
         }
 

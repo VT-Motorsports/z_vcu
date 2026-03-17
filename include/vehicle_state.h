@@ -92,6 +92,7 @@ struct DTI_Inverter
     bool digital_out3;
     bool digital_out4;
 
+    // INPUT FROM INVERTER
     bool drive_enable;
 
     bool limit_cap_temp;
@@ -201,11 +202,39 @@ struct APPS_data
     static const bool torqueVectoringEnabled = false;
 };
 
-struct VSM_CONFIG
+struct VSM_Data
 {
-    static constexpr float max_precharging_time = 3000;
-    static constexpr float max_inverter_voltage_delta = 100;
     static constexpr float nominal_bus_votlage = 302;
+    static constexpr int RTDS_sound_length = 200;
+
+    /**
+     * @brief maximum voltage allowed across all inverters without throwing critical fault
+     *
+     */
+    static constexpr float max_inverter_voltage_delta = 100;
+
+    /**
+     * @brief maximum time that precharging can sequence before a critical fault is thrown
+     *
+     */
+    static constexpr float max_precharging_time = 3000;
+
+    int64_t precharging_start_time = 0;
+
+    int64_t RTDS_start_time = 0;
+
+    /**
+     * @brief Calculated currents summed from all four inverter DC current inputs
+     *
+     */
+    std::atomic<float> inverter_current_summed = 0;
+
+    /**
+     * @brief checks if drive has been enabled, set by the VSM States,
+     * when update_drive_enables() is called, this is read and is used to update hte INVERTERS struct, and then call
+     * send_drive_enable
+     */
+    bool drive_enabled;
 };
 
 // struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
@@ -217,7 +246,7 @@ class VehicleState
     Analog analogIf;
     APPS_data APPSIf;
     const std::atomic<VSM_STATES> *VSM_STATE = nullptr;
-    VSM_CONFIG VSM_If;
+    const VSM_Data *VSM_If = nullptr;
 
   private:
 };

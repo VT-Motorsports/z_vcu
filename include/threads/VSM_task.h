@@ -5,6 +5,18 @@
 #include "threads/periodic_task.h"
 #include "threads/system.h"
 #include <atomic>
+#include <csetjmp>
+
+enum class VSM_FAULTS : int
+{
+    /**
+     * @brief FAULT CODE THROWN WHEN VOLTAGE IS NOT CONSISTENT ACROSS ALL FOUR INVERTERS
+     *
+     */
+    INVERTER_VOLTAGE_SKEW = 120,
+    PRECHARGING_TOOK_TOO_LONG = 121,
+    BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING = 122,
+};
 
 class VSMTask : public PeriodicTask<VSMTask>
 {
@@ -25,6 +37,11 @@ class VSMTask : public PeriodicTask<VSMTask>
     System *system_ = nullptr;
     Hardware *hardware_ = nullptr;
     std::atomic<VSM_STATES> STATE = VSM_STATES::POST;
+    jmp_buf fault_jmp_;
+
+    VSM_Data DATA;
+
+    void throw_vehicle_fault(int fault_code);
 
     /**
      * @brief checks voltage across all 4 inverters
@@ -35,16 +52,8 @@ class VSMTask : public PeriodicTask<VSMTask>
 
     [[nodiscard]] float check_inverter_voltage_skew();
 
-    /**
-     * @brief maximum voltage allowed across all inverters without throwing critical fault
-     *
-     */
+    void transmit_drive_enables();
 
-    /**
-     * @brief maximum time that precharging can sequence before a critical fault is thrown
-     *
-     */
-    int64_t precharging_start_time = 0.0f;
     void run();
 };
 
