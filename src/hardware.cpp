@@ -126,11 +126,13 @@ uint16_t Hardware::getADCValue(uint8_t channel)
 int Hardware::initializeGPIOs()
 {
     // Get GPIO ports
-    gpioe_ = DEVICE_DT_GET(DT_NODELABEL(gpioe));
-    gpioc_ = DEVICE_DT_GET(DT_NODELABEL(gpioc));
     gpioa_ = DEVICE_DT_GET(DT_NODELABEL(gpioa));
+    gpiob_ = DEVICE_DT_GET(DT_NODELABEL(gpiob));
+    gpioc_ = DEVICE_DT_GET(DT_NODELABEL(gpioc));
+    gpiod_ = DEVICE_DT_GET(DT_NODELABEL(gpiod));
+    gpioe_ = DEVICE_DT_GET(DT_NODELABEL(gpioe));
 
-    if (!gpioe_ || !gpioc_ || !gpioa_)
+    if (!gpioa_ || !gpiob_ || !gpioc_ || !gpiod_ || !gpioe_)
     {
         LOG_ERR("Failed to get GPIO ports");
         return -1;
@@ -164,7 +166,7 @@ int Hardware::initializeGPIOs()
     }
 
     // Initialize control signals
-    if (horn_signal.init(gpioc_, 8, GPIO_OUTPUT_INACTIVE) != 0)
+    if (horn_signal.init(gpioa_, 10, GPIO_OUTPUT_INACTIVE) != 0)
     {
         LOG_ERR("Failed to init horn_signal");
         return -20;
@@ -178,6 +180,38 @@ int Hardware::initializeGPIOs()
     {
         LOG_ERR("Failed to init air_ctrl");
         return -22;
+    }
+    if (prc_ctrl.init(gpioa_, 9, GPIO_OUTPUT_INACTIVE) != 0)
+    {
+        LOG_ERR("Failed to init prc_ctrl");
+        return -23;
+    }
+
+    // Initialize fault inputs (active high from shutdown circuit)
+    if (ams_fault.init(gpiod_, 4, GPIO_INPUT) != 0)
+    {
+        LOG_ERR("Failed to init ams_fault");
+        return -30;
+    }
+    if (imd_fault.init(gpiod_, 3, GPIO_INPUT) != 0)
+    {
+        LOG_ERR("Failed to init imd_fault");
+        return -31;
+    }
+    if (bspd_fault.init(gpiod_, 2, GPIO_INPUT) != 0)
+    {
+        LOG_ERR("Failed to init bspd_fault");
+        return -32;
+    }
+
+    // Initialize debug GPIOs (PB12-PB15)
+    for (int i = 0; i < 4; i++)
+    {
+        if (debug_gpio[i].init(gpiob_, 12 + i, GPIO_OUTPUT_INACTIVE) != 0)
+        {
+            LOG_ERR("Failed to init debug_gpio_%d", i);
+            return -(40 + i);
+        }
     }
 
     LOG_INF("GPIOs initialized");
