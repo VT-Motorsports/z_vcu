@@ -2,6 +2,42 @@
 #pragma once
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
+#include <optional>
+#include <atomic>
+#include <bitset>
+enum class VSM_STATES
+{
+
+    // Default state that is initialized to, not expected to return to unless terminal fault
+    POST = 0,
+
+    // Wait state with PREHARGE relay closed, waiting to see bus voltage rise when SC closes
+    READY = 1,
+
+    // Interim State when bus voltage rises. IF bus voltage doenst rise fast enough, terminal fault is thrown
+    PRECHARGING = 2,
+
+    // Post PRECHARGING, close AIR+, and verify that system is nominal
+    // Critical safety section
+    HV_ACTIVE = 3,
+
+    // State to wait for driver to push BRAKE + START button
+    ARMED = 4,
+
+    // Interim state where buzzer is played and RTDS checks are completed
+    RTDS = 5,
+
+    // DRIVE mode, nominal with torque commands finally enabled
+    DRIVE = 6,
+
+    // FAULT mode, vehicle enters safe state with DRIVE disabled,Torque zeroed and all HV contactors opened
+    FAULT = 7,
+
+    // If HV gets disabled without AMS, IMD or BSPD signal being thrown, we enter SHUTDOWN, which then resets to READY
+    // state after vehicle reaches 0 speed, 0 intermediate bus voltage. CAR must RETURN TO startup state, akin to
+    // sys_reboot() AIRs CONTACTORS MUST BE RESET
+    SHUTDOWN = 8,
+};
 
 enum Corner : uint8_t
 {
@@ -56,6 +92,7 @@ struct DTI_Inverter
     bool digital_out3;
     bool digital_out4;
 
+    // INPUT FROM INVERTER
     bool drive_enable;
 
     bool limit_cap_temp;
@@ -162,7 +199,54 @@ struct APPS_data
     float commandedTorquePercentage;
     float pedal1_percent;
     float pedal2_percent;
-    static const bool torqueVectoringEnabled = false;
+    bool torqueVectoringEnabled = false;
+};
+
+struct VSM_Data
+{
+    static constexpr float nominal_bus_votlage = 302;
+    static constexpr int RTDS_sound_length = 200;
+
+    /**
+     * @brief maximum voltage allowed across all inverters without throwing critical fault
+     *
+     */
+    static constexpr float max_inverter_voltage_delta = 100;
+
+    /**
+     * @brief maximum time that precharging can sequence before a critical fault is thrown
+     *
+     */
+    static constexpr float max_precharging_time = 3000;
+
+    /**
+     * @brief Calculated an estimation of the pack resistance, can be used to infer the expected voltage AT the inverter
+     * terminals. This can then be used to figure out if the AIRs are opened or not even at runtime when the car is not
+     * stopped and current != 0
+     */
+    static constexpr float estimated_pack_resistance = 0.32f;
+
+    int64_t precharging_start_time = 0;
+
+    int64_t RTDS_start_time = 0;
+
+    float dc_link_voltage = 0;
+
+    /**
+     * @brief Calculated currents summed from all four inverter DC current inputs
+     *
+     */
+    std::atomic<float> inverter_current_summed = 0;
+    float estimated_link_voltage = 0;
+
+    /**
+     * @brief checks if drive has been enabled, set by the VSM States,
+     * when update_drive_enables() is called, this is read and is used to update hte INVERTERS struct, and then call
+     * send_drive_enable
+     */
+    bool drive_enabled;
+
+    std::bitset<64> FAULTS;
 };
 
 // struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
@@ -173,4 +257,8 @@ class VehicleState
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
     Analog analogIf;
     APPS_data APPSIf;
+    const std::atomic<VSM_STATES> *VSM_STATE = nullptr;
+    const VSM_Data *VSM_If = nullptr;
+
+  private:
 };
