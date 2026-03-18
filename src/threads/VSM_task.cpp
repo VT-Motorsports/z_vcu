@@ -4,6 +4,8 @@
 #include "zephyr/drivers/can.h"
 #include "zephyr/kernel.h"
 #include "zephyr/sys/reboot.h"
+#include <bitset>
+#include <cstdint>
 #include <zephyr/sys/__assert.h>
 #include <cfloat>
 #include <climits>
@@ -17,12 +19,19 @@ K_THREAD_STACK_DEFINE(VSM_stack, 2048);
 
 static VSMTask VSM_task_instance;
 
-void VSMTask::throw_vehicle_fault(int fault_code)
+void VSMTask::throw_vehicle_fault(VSM_FAULTS fault_code)
 {
     STATE = VSM_STATES::FAULT;
+    DATA.FAULTS.set(static_cast<int>(fault_code));
 
-    LOG_ERR("CRITICAL VEHICLE FAULT WAS THROWN, GOING TO FAULT STATE");
-    longjmp(fault_jmp_, fault_code);
+    LOG_ERR("CRITICAL VEHICLE FAULT WAS THROWN, GOING TO FAULT STATE, Code: %d ", static_cast<int>(fault_code));
+    LOG_ERR("VEHICLE FAULT VECTOR: %llu", DATA.FAULTS.to_ullong());
+
+    // push all faults to global vehicle_state vector since the local copy cannot be passed safely through
+    // the longjmp back to VSM.
+
+    longjmp(fault_jmp_, static_cast<int>(fault_code));
+    __ASSERT(false, "longjmp out of fault handler should not return");
 }
 
 void VSMTask::transmit_drive_enables()
@@ -58,9 +67,9 @@ void VSMTask::run()
     {
     case VSM_STATES::POST: {
         __ASSERT(system_ && hardware_ && vehicle(),
-                 "System or Hardware or Vehicle struct not initialized before starting VSM. Rebooting")
+                 "System or Hardware or Vehicle struct not initialized before starting VSM. Rebooting");
 
-        float voltage = check_inverter_voltage_skew();
+        float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
         if (voltage < 5.0f)
         {
@@ -70,10 +79,15 @@ void VSMTask::run()
     break;
 
     case VSM_STATES::READY: {
-
+        // checks if any faults were set in the check_fault bitset, if set call FAULT handlers
+        std::bitset<64> codes = check_faults();
+        if (codes.any())
+        {
+            throw_vehicle_fault(VSM_FAULTS::NO_FAULT);
+        }
         // tbd : SET precharge relay High
 
-        float voltage = check_inverter_voltage_skew();
+        float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
         if (voltage > 20.0f)
         {
@@ -87,9 +101,9 @@ void VSMTask::run()
         if (k_uptime_get() > (DATA.precharging_start_time + DATA.max_precharging_time))
         {
             this->STATE = VSM_STATES::FAULT;
-            throw_vehicle_fault(static_cast<int>(VSM_FAULTS::PRECHARGING_TOOK_TOO_LONG));
+            throw_vehicle_fault(VSM_FAULTS::PRECHARGING_TOOK_TOO_LONG);
         }
-        float voltage = check_inverter_voltage_skew();
+        float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
         // NEEDS TO BE UPDATED TO READ LIVE BMS VOLTAGE, WILL NOT WORK AS SoC changes
         if (voltage > DATA.nominal_bus_votlage * 0.95f)
@@ -100,13 +114,13 @@ void VSMTask::run()
     break;
 
     case VSM_STATES::HV_ACTIVE: {
-        float voltage = check_inverter_voltage_skew();
+        float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
         // close AIRs here
         if (voltage < DATA.nominal_bus_votlage * 0.95f)
         {
             STATE = VSM_STATES::FAULT;
-            throw_vehicle_fault(static_cast<int>(VSM_FAULTS::BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING));
+            throw_vehicle_fault(VSM_FAULTS::BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING);
         }
 
         if (voltage >= DATA.nominal_bus_votlage * 0.99f)
@@ -148,15 +162,19 @@ void VSMTask::run()
     case VSM_STATES::DRIVE: {
         transmit_drive_enables();
 
-        // calculate in local variable to be loaded in atomically later.
-        int local_current_calculated = 0;
-        for (auto c : vehicle()->INVERTERS)
-        {
-            local_current_calculated += c.dc_current;
-        }
+        InvertersAggregate<int16_t> inv_dc_current = reduce_inverter(&DTI_Inverter::dc_current);
+        DATA.inverter_current_summed.store(inv_dc_current.sum / 10.0f);
 
-        // atomic operation for irq protection
-        DATA.inverter_current_summed.store(local_current_calculated);
+        InvertersAggregate<int16_t> inv_dc_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
+        DATA.dc_link_voltage = inv_dc_voltage.avg();
+        DATA.estimated_link_voltage = vehicle()->VSM_If->nominal_bus_votlage * DATA.estimated_pack_resistance;
+
+        if (DATA.dc_link_voltage < DATA.estimated_link_voltage)
+        {
+            LOG_WRN("AIRs Opened");
+            // OPEN AIRs, HARD RESET TO POST STATE.
+            STATE = VSM_STATES::SHUTDOWN;
+        }
     }
     break;
 
@@ -205,37 +223,18 @@ void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_
     LOG_INF("VSM task started (%u ms period)", period_ms);
 }
 
-[[nodiscard]] float VSMTask::check_inverter_voltage_skew()
+std::bitset<64> VSMTask::check_faults(void)
 {
 
-    float averageVoltage = 0;
-    float minVoltage = FLT_MAX;
-    float maxVoltage = FLT_MIN;
-
-    int key = irq_lock();
-
-    for (int i = 0; i < 4; i++)
+    std::bitset<64> FAULT_VECTOR;
+    // checking for inverter voltage skew
+    InvertersAggregate<int16_t> inp_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
+    [[unlikely]] if (inp_voltage.skew() > DATA.max_inverter_voltage_delta)
     {
-        int curVoltage = vehicle()->INVERTERS[i].input_voltage;
-        averageVoltage += curVoltage / 4.0f;
-
-        if (curVoltage < minVoltage)
-        {
-            minVoltage = curVoltage;
-        }
-        else if (curVoltage > maxVoltage)
-        {
-            maxVoltage = curVoltage;
-        }
+        FAULT_VECTOR.set(static_cast<int>(VSM_FAULTS::INVERTER_VOLTAGE_SKEW), true);
     }
 
-    irq_unlock(key);
+    // ADD GPIO checks for shutdown faults
 
-    [[unlikely]] if (fabsf(maxVoltage - minVoltage) > DATA.max_inverter_voltage_delta)
-    {
-        LOG_ERR("Voltage SKEW TOO GREAT across Inverters");
-        STATE = VSM_STATES::FAULT;
-        throw_vehicle_fault(120);
-    }
-    return averageVoltage;
+    return FAULT_VECTOR;
 }

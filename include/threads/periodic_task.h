@@ -75,6 +75,10 @@ template <typename Derived> class PeriodicTask
     {
         return vehicle_;
     }
+    const VehicleState *vehicle() const
+    {
+        return vehicle_;
+    }
 
     // Default no-op hooks. Derived classes shadow these to override.
     void on_init()

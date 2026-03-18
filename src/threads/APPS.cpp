@@ -65,7 +65,7 @@ void APPSTask::run()
 
     if (apps.faulted)
     {
-        LOG_WRN("APPS fault active — torque command zeroed");
+        // LOG_WRN("APPS fault active — torque command zeroed");
     }
 
     if (apps.torqueVectoringEnabled)

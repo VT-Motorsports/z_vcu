@@ -18,9 +18,28 @@ SWO : PB0 / pin 34
 USART3_TX : PD8 / pin 55 
 USART3_RX : PD9 / pin 56
 
-HORN_SIG : PC8 / pin 65 
+HORN_SIG : PA10 / pin 69
 DRIVE_ENABLE : PC9 / pin 66 
 AIR_CTRL : PA8 / pin 67
+PRC_CTRL : PA9 / pin 68
+
+
+AMS_FAULT_MCU: PD4/ pin 85 
+IMD_FAULT_MCU: PD3/ pin 84 
+BSPD_FAULT_MCU: PD2/ pin 83 
+
+DEBUG_GPIO_3 : PB15 / pin 54 
+DEBUG_GPIO_2 : PB14 / pin 53
+DEBUG_GPIO_1 : PB13 / pin 52 
+DEBUG_GPIO_0 : PB12 / pin 51
+
+OSC_IN : PH0 / pin 12  // NX3225SA24.000MSTDCSR1
+
+OSC_OUT : PH1 / pin 13 // 24MHZ oscillator
+
+
+
+
 
 SWDIO : PA13 / pin 72 
 SWCLK : PA14 / pin 76 

@@ -5,17 +5,33 @@
 #include "threads/periodic_task.h"
 #include "threads/system.h"
 #include <atomic>
+#include <bitset>
 #include <csetjmp>
 
 enum class VSM_FAULTS : int
 {
-    /**
-     * @brief FAULT CODE THROWN WHEN VOLTAGE IS NOT CONSISTENT ACROSS ALL FOUR INVERTERS
-     *
-     */
-    INVERTER_VOLTAGE_SKEW = 120,
-    PRECHARGING_TOOK_TOO_LONG = 121,
-    BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING = 122,
+    NO_FAULT = 0,
+    INVERTER_VOLTAGE_SKEW = 12,
+    PRECHARGING_TOOK_TOO_LONG = 13,
+    BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING = 14,
+    IMD_FAULT = 1,
+    AMS_FAULT = 2,
+    BSPD_FAULT = 3,
+};
+
+template <typename T> struct InvertersAggregate
+{
+    T sum;
+    T min;
+    T max;
+    T avg() const
+    {
+        return sum / static_cast<T>(4);
+    }
+    T skew() const
+    {
+        return max - min;
+    }
 };
 
 class VSMTask : public PeriodicTask<VSMTask>
@@ -41,20 +57,34 @@ class VSMTask : public PeriodicTask<VSMTask>
 
     VSM_Data DATA;
 
-    void throw_vehicle_fault(int fault_code);
+    void throw_vehicle_fault(VSM_FAULTS fault_code);
 
     /**
-     * @brief checks voltage across all 4 inverters
-     * @attention MAY throw critical fault over CAN/LOGS and move VSM to FAULT state
-                 if the voltage delta across all four invertes exceeds this-> max_inverter_voltage_delta
-     * @return float returns average voltage across 4 inverters
+     * @brief Does not check for all faults, only checks for common STATE agnostic faults
+     *  such as shutdown faults, skew faults or bus voltage/current faults
+     *  STATE concisous faults such as precharging or RTDS should be checked in teh VSM itself
+     *  @return returns VSM_FAULTS enumtype for corresponding fault type
      */
-
-    [[nodiscard]] float check_inverter_voltage_skew();
+    [[nodiscard("Do not discard check faults return code")]] std::bitset<64> check_faults(void);
 
     void transmit_drive_enables();
 
     void run();
+
+    template <typename T> InvertersAggregate<T> const reduce_inverter(T DTI_Inverter::*field) const
+    {
+        T sum = 0, mn = vehicle()->INVERTERS[0].*field, mx = mn;
+        for (int i = 0; i < 4; i++)
+        {
+            T val = vehicle()->INVERTERS[i].*field;
+            sum += val;
+            if (val < mn)
+                mn = val;
+            if (val > mx)
+                mx = val;
+        }
+        return {sum, mn, mx};
+    }
 };
 
 void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms = 50, int priority = -5);
