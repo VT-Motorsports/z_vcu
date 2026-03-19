@@ -31,9 +31,18 @@ class Hardware
     GpioPin led_green;  // PE6 - led4
 
     // Control signals
-    GpioPin horn_signal;  // PC8
+    GpioPin horn_signal;  // PA10
     GpioPin drive_enable; // PC9
     GpioPin air_ctrl;     // PA8
+    GpioPin prc_ctrl;     // PA9
+
+    // Fault inputs (active high from shutdown circuit)
+    GpioPin ams_fault;  // PD4
+    GpioPin imd_fault;  // PD3
+    GpioPin bspd_fault; // PD2
+
+    // Debug GPIOs (PB12-PB15)
+    GpioPin debug_gpio[4];
 
     CanBus can1;
     CanBus can2;
@@ -44,9 +53,11 @@ class Hardware
   private:
     VehicleState *vehicle;
     const struct device *adc_dev_ = nullptr;
-    const struct device *gpioe_ = nullptr;
-    const struct device *gpioc_ = nullptr;
     const struct device *gpioa_ = nullptr;
+    const struct device *gpiob_ = nullptr;
+    const struct device *gpioc_ = nullptr;
+    const struct device *gpiod_ = nullptr;
+    const struct device *gpioe_ = nullptr;
     const struct device *can1_dev = nullptr;
     const struct device *can2_dev = nullptr;
     int initializeADCs();

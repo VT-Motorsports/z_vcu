@@ -48,7 +48,7 @@
 	vcu_signals {
 		compatible = "gpio-leds";
 		horn_signal: horn_sig {
-			gpios = <&gpioc 8 GPIO_ACTIVE_HIGH>;
+			gpios = <&gpioa 10 GPIO_ACTIVE_HIGH>;
 			label = "Horn Signal";
 		};
 		drive_enable: drive_en {
@@ -58,6 +58,46 @@
 		air_ctrl: air_control {
 			gpios = <&gpioa 8 GPIO_ACTIVE_HIGH>;
 			label = "AIR Control";
+		};
+		prc_ctrl: prc_control {
+			gpios = <&gpioa 9 GPIO_ACTIVE_HIGH>;
+			label = "Precharge Control";
+		};
+	};
+
+	fault_inputs {
+		compatible = "gpio-keys";
+		ams_fault: ams_fault_mcu {
+			gpios = <&gpiod 4 GPIO_ACTIVE_HIGH>;
+			label = "AMS Fault";
+		};
+		imd_fault: imd_fault_mcu {
+			gpios = <&gpiod 3 GPIO_ACTIVE_HIGH>;
+			label = "IMD Fault";
+		};
+		bspd_fault: bspd_fault_mcu {
+			gpios = <&gpiod 2 GPIO_ACTIVE_HIGH>;
+			label = "BSPD Fault";
+		};
+	};
+
+	debug_gpios {
+		compatible = "gpio-leds";
+		debug_gpio_0: dbg_gpio_0 {
+			gpios = <&gpiob 12 GPIO_ACTIVE_HIGH>;
+			label = "Debug GPIO 0";
+		};
+		debug_gpio_1: dbg_gpio_1 {
+			gpios = <&gpiob 13 GPIO_ACTIVE_HIGH>;
+			label = "Debug GPIO 1";
+		};
+		debug_gpio_2: dbg_gpio_2 {
+			gpios = <&gpiob 14 GPIO_ACTIVE_HIGH>;
+			label = "Debug GPIO 2";
+		};
+		debug_gpio_3: dbg_gpio_3 {
+			gpios = <&gpiob 15 GPIO_ACTIVE_HIGH>;
+			label = "Debug GPIO 3";
 		};
 	};
 
@@ -70,37 +110,32 @@
 		horn = &horn_signal;
 		drive-enable = &drive_enable;
 		air-ctrl = &air_ctrl;
+		prc-ctrl = &prc_ctrl;
 	};
 };
 
-// &clk_lse {
-// 	status = "okay";
-// };
-
-
-
-
-&clk_hsi {
+&clk_hse {
+	clock-frequency = <DT_FREQ_M(25)>;  // 25 MHz crystal
 	status = "okay";
 };
 
 &pll {
-    div-m = <16>;     // 64 MHz / 16 = 4 MHz (same as Nucleo!)
-    mul-n = <240>;    // 4 MHz × 240 = 960 MHz VCO ✓
-    div-p = <2>;      // 960 / 2 = 480 MHz ✓
+    div-m = <5>;      // 25 MHz / 5 = 5 MHz
+    mul-n = <192>;    // 5 MHz × 192 = 960 MHz VCO
+    div-p = <2>;      // 960 / 2 = 480 MHz
     div-q = <2>;      // 960 / 2 = 480 MHz
     div-r = <2>;      // 960 / 2 = 480 MHz
-    clocks = <&clk_hsi>;  // ← Changed from HSE to HSI
+    clocks = <&clk_hse>;
     status = "okay";
 };
 
 &pll2 {
-    div-m = <32>;     // 64 MHz / 32 = 2 MHz
-    mul-n = <120>;    // 2 MHz × 120 = 240 MHz VCO
+    div-m = <5>;      // 25 MHz / 5 = 5 MHz
+    mul-n = <48>;     // 5 MHz × 48 = 240 MHz VCO
     div-p = <2>;      // 240 / 2 = 120 MHz
-    div-q = <3>;      // 240 / 3 = 80 MHz (for FDCAN) ✓
+    div-q = <3>;      // 240 / 3 = 80 MHz (for FDCAN)
     div-r = <2>;      // 240 / 2 = 120 MHz
-    clocks = <&clk_hsi>;  // ← Changed from HSE to HSI
+    clocks = <&clk_hse>;
     status = "okay";
 };
 
