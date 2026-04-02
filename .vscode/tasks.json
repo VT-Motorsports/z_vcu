@@ -1,0 +1,10 @@
+{
+    "label": "kill-debug-server",
+    "type": "shell",
+    "command": "try { Stop-Process -Name 'ST-LINK_gdbserver' -Force -ErrorAction Stop } catch { }",
+    "presentation": {
+        "reveal": "silent",
+        "close": true
+    },
+    "problemMatcher": []
+}

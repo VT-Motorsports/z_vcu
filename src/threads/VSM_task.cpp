@@ -6,9 +6,11 @@
 #include "zephyr/sys/reboot.h"
 #include <bitset>
 #include <cstdint>
+#include <utility>
 #include <zephyr/sys/__assert.h>
 #include <cfloat>
 #include <climits>
+#include <exception>
 #include <csetjmp>
 #include <sys/_intsup.h>
 #include <zephyr/logging/log.h>
@@ -58,6 +60,7 @@ void VSMTask::transmit_drive_enables()
 void VSMTask::run()
 {
 
+    hardware_->led_orange.toggle();
     int fault_code = setjmp(fault_jmp_);
     if (fault_code != 0)
     {
@@ -178,8 +181,9 @@ void VSMTask::run()
     }
     break;
 
-    case VSM_STATES::SHUTDOWN:
-        break;
+    case VSM_STATES::SHUTDOWN: {
+    }
+    break;
 
     case VSM_STATES::FAULT: {
         static int fault_code_latched = -1;
@@ -231,7 +235,7 @@ std::bitset<64> VSMTask::check_faults(void)
     InvertersAggregate<int16_t> inp_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
     [[unlikely]] if (inp_voltage.skew() > DATA.max_inverter_voltage_delta)
     {
-        FAULT_VECTOR.set(static_cast<int>(VSM_FAULTS::INVERTER_VOLTAGE_SKEW), true);
+        FAULT_VECTOR.set(std::to_underlying(VSM_FAULTS::INVERTER_VOLTAGE_SKEW), true);
     }
 
     // ADD GPIO checks for shutdown faults

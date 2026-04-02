@@ -77,6 +77,7 @@ uint8_t System::get_cpu_load() const
 
 void DiagnosticsTask::run()
 {
+    hardware_->led_yellow.toggle();
     uint64_t uptime_ms = k_uptime_get();
 
     struct sys_memory_stats mem_stats = {0, 0, 0};

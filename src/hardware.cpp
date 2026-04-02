@@ -106,7 +106,7 @@ int Hardware::initializeADCs()
         return -17;
     }
 
-    LOG_INF("Hardware initialized successfully");
+    LOG_INF("ADCs initialized successfully");
     return 0;
 }
 

@@ -34,6 +34,7 @@ void APPSTask::on_deadline_miss()
 
 void APPSTask::run()
 {
+    hardware_->led_green.toggle();
     APPS_data &apps = vehicle()->APPSIf;
     uint16_t &pedal1raw = vehicle()->analogIf.channels[APPS_data::pedal1_adc_channel_num];
     uint16_t &pedal2raw = vehicle()->analogIf.channels[APPS_data::pedal2_adc_channel_num];

@@ -1,5 +1,6 @@
 // vehicle_state.h
 #pragma once
+#include <array>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/can.h>
 #include <optional>
@@ -249,6 +250,97 @@ struct VSM_Data
     std::bitset<64> FAULTS;
 };
 
+struct BMS_data
+{
+
+    static constexpr int NUM_CELLS = 72;
+
+    struct CellData
+    {
+        uint16_t voltage;
+        uint16_t open_voltage;
+        uint16_t resistance;
+        uint8_t balancing;
+    };
+
+    // --- 0x6B0 (8 ms) ---
+    int16_t pack_current;       // × 0.1  A  (signed)
+    uint16_t pack_inst_voltage; // × 0.1  V
+    uint8_t pack_soc;           // × 0.5  %
+
+    // I/O flags (byte 5)
+    uint8_t multipurpose_input_2;
+    uint8_t multipurpose_input_3;
+    uint8_t multipurpose_output_2;
+    uint8_t multipurpose_output_3;
+    uint8_t multipurpose_output_4;
+    uint8_t multipurpose_enable;
+    uint8_t multipurpose_output;
+
+    // Relay flags (byte 6)
+    uint8_t discharge_relay;
+    uint8_t charge_relay;
+    uint8_t charger_safety;
+    uint8_t error_mil_output;
+    uint8_t multipurpose_input;
+    uint8_t constant_1;
+    uint8_t ready_power_signal;
+    uint8_t charge_power_signal;
+
+    // --- 0x6B1 (104 ms) ---
+    uint16_t pack_dcl;       // × 1    A
+    uint8_t pack_ccl;        // × 1    A
+    int8_t high_temperature; // × 1    °C
+    int8_t low_temperature;  // × 1    °C
+
+    // --- 0x3E8 (104 ms) ---
+    uint8_t low_cell_voltage_id;
+    uint16_t low_cell_voltage;     // × 0.0001 V
+    uint16_t low_opencell_voltage; // × 0.0001 V
+    uint16_t low_cell_resistance;  // × 0.01   mOhm
+
+    // --- 0x3E9 (1008 ms) ---
+    uint8_t high_cell_voltage_id;
+    uint16_t high_cell_voltage; // × 0.0001 V
+    uint16_t high_opencell_id;
+    uint16_t high_cell_resistance; // × 0.01   mOhm
+
+    // --- 0x3F0 (96 ms) ---
+    uint8_t pack_soc_ext;           // × 0.5  %
+    uint16_t pack_inst_voltage_ext; // × 0.1  V
+    uint16_t pack_open_voltage;     // × 0.1  V
+    uint16_t pack_current_ext;      // × 0.1  A
+
+    // --- 0x3F1 (1008 ms) ---
+    uint16_t pack_resistance;  // × 0.001  Ohm
+    uint16_t avg_cell_voltage; // × 0.0001 V
+
+    // --- 0x3F2 (1000 ms) ---
+    uint16_t adaptive_total_capacity; // × 0.1  Ah
+    uint16_t adaptive_amphours;       // × 0.1  Ah
+    uint8_t adaptive_soc;             // × 0.5  %
+
+    // --- 0x3F3 (1000 ms) ---
+    uint16_t dtc_flags_1;
+    uint16_t dtc_flags_2;
+
+    // --- 0x3F4 (1008 ms) ---
+    uint16_t pack_dcl_ext; // × 1  A
+    uint16_t current_limits_status;
+
+    // --- 0x3F5 (8 ms) ---
+    uint16_t pack_current_fast; // × 0.1  A
+
+    // --- 0x200 cell broadcast (12 ms, round-robin) ---
+
+    CellData cells[NUM_CELLS];
+
+    int64_t last_cell_rx_time_ms;
+
+    // General heartbeat
+    int64_t last_rx_time_ms;
+};
+
 // struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
 // classes that interact with vehicle state should refer to this struct as source of truth
 class VehicleState
@@ -257,6 +349,7 @@ class VehicleState
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
     Analog analogIf;
     APPS_data APPSIf;
+    BMS_data BMSIf;
     const std::atomic<VSM_STATES> *VSM_STATE = nullptr;
     const VSM_Data *VSM_If = nullptr;
 

@@ -4,6 +4,7 @@
 #include <zephyr/logging/log.h>
 
 #include "can_decoders/dti_decoders.h"
+#include "can_decoders/orion_bms_decoders.h"
 #include "stm32h753xx.h"
 #include "vehicle_state.h"
 #include "zephyr/drivers/can.h"
@@ -39,9 +40,19 @@ void CanBus::dispatch(const struct can_frame *frame)
 {
     uint16_t id = frame->id & CAN_STD_ID_MASK;
 
-    if (id < 2048 && bus_handlers[id])
+    if (id >= 2048)
+    {
+        LOG_WRN("CAN frame ID 0x%03X exceeds table size", id);
+        return;
+    }
+
+    if (bus_handlers[id])
     {
         bus_handlers[id](frame, vehicle_);
+    }
+    else
+    {
+        LOG_WRN_ONCE("No handler for CAN ID 0x%03X", id);
     }
 
     frames_rec++;
@@ -108,12 +119,26 @@ int CanBus::register_handlers()
         bus_handlers[DTI_CAN_ID(0x24, DTI_NODE_RR)] = decode_dti_rr_0x24;
         bus_handlers[DTI_CAN_ID(0x25, DTI_NODE_RR)] = decode_dti_rr_0x25;
         bus_handlers[DTI_CAN_ID(0x26, DTI_NODE_RR)] = decode_dti_rr_0x26;
-
         LOG_INF("Registered 32 DTI decoder handlers on CAN1");
     }
     else if (dev_ == DEVICE_DT_GET(DT_NODELABEL(fdcan2)))
     {
-        // CAN2 handlers go here (BMS, dashboard, etc.)
+
+        // ---- Orion BMS on CAN2 ----
+        bus_handlers[0x200] = decode_orion_0x200;
+        bus_handlers[0x3E8] = decode_orion_0x3E8;
+        bus_handlers[0x3E9] = decode_orion_0x3E9;
+        bus_handlers[0x3F0] = decode_orion_0x3F0;
+        bus_handlers[0x3F1] = decode_orion_0x3F1;
+        bus_handlers[0x3F2] = decode_orion_0x3F2;
+        bus_handlers[0x3F3] = decode_orion_0x3F3;
+        bus_handlers[0x3F4] = decode_orion_0x3F4;
+        bus_handlers[0x3F5] = decode_orion_0x3F5;
+        bus_handlers[0x6B0] = decode_orion_0x6B0;
+        bus_handlers[0x6B1] = decode_orion_0x6B1;
+
+        LOG_INF("Registered 11 Orion BMS decoder handlers on CAN2");
+
         LOG_INF("CAN2 handler registration — no handlers yet");
     }
     else
@@ -201,7 +226,7 @@ int CanBus::init(const struct device *dev, uint32_t bitrate, uint32_t sample_poi
 
     constexpr struct can_filter accept_all_filter = {
         .id = 0x000,
-        .mask = ~CAN_STD_ID_MASK,
+        .mask = 0x00U,
         .flags = 0U,
     };
 

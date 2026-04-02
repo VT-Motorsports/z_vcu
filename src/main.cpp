@@ -4,6 +4,7 @@
 #include "threads/APPS.h"
 #include "hardware.h"
 #include "threads/Logger.h"
+#include "threads/VSM_task.h"
 #include "threads/system.h"
 #include "vehicle_state.h"
 
@@ -40,6 +41,8 @@ int main(void)
 
     // starts logger task that broadcasts data from vehicle_state onto CANBUS2
     start_logger_task(&system, &hardware, &vehicle);
+
+    start_VSM_task(&system, &hardware, &vehicle);
 
     LOG_INF("=== VCU Ready ===");
 

@@ -11,6 +11,7 @@ static LoggerTask logger_task_instance;
 
 void LoggerTask::run()
 {
+    hardware_->led_blue.toggle();
     struct can_frame frame{};
     encode_apps_state(&frame, vehicle());
     hardware_->can2.send(&frame, K_NO_WAIT);
