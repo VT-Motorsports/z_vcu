@@ -52,6 +52,7 @@ enum Corner : uint8_t
 struct DTI_Inverter
 {
 
+    static constexpr int16_t pole_pairs = 4;
     static constexpr int16_t max_ac_current_x10 = 1000; // 100 A_pk — tune per motor
 
     uint8_t node_id;
@@ -200,6 +201,7 @@ struct APPS_data
     float commandedTorquePercentage;
     float pedal1_percent;
     float pedal2_percent;
+    float average_pedal_percent;
     bool torqueVectoringEnabled = false;
 };
 
