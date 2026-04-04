@@ -54,7 +54,11 @@ class VSMTask : public PeriodicTask<VSMTask>
     System *system_ = nullptr;
     Hardware *hardware_ = nullptr;
     std::atomic<VSM_STATES> STATE = VSM_STATES::POST;
-    jmp_buf fault_jmp_;
+
+    void on_init()
+    {
+        // run initializer code
+    }
 
     [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_post();
     [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_ready();
