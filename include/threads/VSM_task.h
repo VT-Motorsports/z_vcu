@@ -11,6 +11,7 @@
 enum class VSM_FAULTS : int
 {
     NO_FAULT = 0,
+    FAULTED = 4, // used when fault type is unknown but we know that a fault has occured
     INVERTER_VOLTAGE_SKEW = 12,
     PRECHARGING_TOOK_TOO_LONG = 13,
     BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING = 14,
@@ -55,17 +56,25 @@ class VSMTask : public PeriodicTask<VSMTask>
     std::atomic<VSM_STATES> STATE = VSM_STATES::POST;
     jmp_buf fault_jmp_;
 
-    VSM_Data DATA;
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_post();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_ready();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_precharging();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_hv_active();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_armed();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_rtds();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_drive();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_fault();
+    [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_shutdown();
 
-    void throw_vehicle_fault(VSM_FAULTS fault_code);
+    VSM_Data DATA;
 
     /**
      * @brief Does not check for all faults, only checks for common STATE agnostic faults
      *  such as shutdown faults, skew faults or bus voltage/current faults
      *  STATE concisous faults such as precharging or RTDS should be checked in teh VSM itself
-     *  @return returns VSM_FAULTS enumtype for corresponding fault type
+     *  @return modifies DATA.FAULTS bitvector with recognized faults
      */
-    [[nodiscard("Do not discard check faults return code")]] std::bitset<64> check_faults(void);
+    void check_faults(void);
 
     void transmit_drive_enables();
 
