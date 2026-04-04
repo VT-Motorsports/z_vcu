@@ -57,7 +57,8 @@ void APPSTask::run()
 
     apps.errors[PEDAL_AGREEMENT] = checkPedalAgreement(apps.pedal1_percent, apps.pedal2_percent);
 
-    float avg_pct = (apps.pedal1_percent + apps.pedal2_percent) / 2.0f;
+    float &avg_pct = apps.average_pedal_percent;
+    avg_pct = (apps.pedal1_percent + apps.pedal2_percent) / 2.0f;
     apps.errors[BRAKE_OVERLAP] = checkBrakeOverlap(avg_pct);
 
     apps.faulted = range_fault || apps.errors[PEDAL_AGREEMENT] || apps.errors[BRAKE_OVERLAP];
