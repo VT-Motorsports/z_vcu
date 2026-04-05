@@ -176,16 +176,6 @@ int Hardware::initializeGPIOs()
         LOG_ERR("Failed to init drive_enable");
         return -21;
     }
-    if (air_ctrl.init(gpioa_, 8, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init air_ctrl");
-        return -22;
-    }
-    if (prc_ctrl.init(gpioa_, 9, GPIO_OUTPUT_INACTIVE) != 0)
-    {
-        LOG_ERR("Failed to init prc_ctrl");
-        return -23;
-    }
 
     // Initialize fault inputs (active high from shutdown circuit)
     if (ams_fault.init(gpiod_, 4, GPIO_INPUT) != 0)

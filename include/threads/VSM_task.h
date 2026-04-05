@@ -1,9 +1,12 @@
 #pragma once
 
+#include "gpio.h"
+#include "threads/VSM_task.h"
 #include "vehicle_state.h"
 #include "hardware.h"
 #include "threads/periodic_task.h"
 #include "threads/system.h"
+#include "AIR.h"
 #include <atomic>
 #include <bitset>
 #include <csetjmp>
@@ -54,11 +57,12 @@ class VSMTask : public PeriodicTask<VSMTask>
     System *system_ = nullptr;
     Hardware *hardware_ = nullptr;
     std::atomic<VSM_STATES> STATE = VSM_STATES::POST;
+    contactor air_if;
 
-    void on_init()
-    {
-        // run initializer code
-    }
+    const struct device *gpioa_ = nullptr;
+    GpioPin prc_if;
+
+    void on_init();
 
     [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_post();
     [[nodiscard("Do not discard fault return on VSM function")]] VSM_FAULTS run_ready();

@@ -175,12 +175,14 @@ VSM_FAULTS VSMTask::run_post()
 VSM_FAULTS VSMTask::run_ready()
 {
     // checks if any faults were set in the check_fault bitset, if set call FAULT handlers
+    air_if.disarm();
     check_faults();
     if (DATA.FAULTS.any())
     {
         return VSM_FAULTS::FAULTED;
     }
-    // tbd : SET precharge relay High
+
+    prc_if.set(true);
 
     float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
@@ -203,8 +205,10 @@ VSM_FAULTS VSMTask::run_precharging()
     float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
     // NEEDS TO BE UPDATED TO READ LIVE BMS VOLTAGE, WILL NOT WORK AS SoC changes
-    if (voltage > DATA.nominal_bus_votlage * 0.95f)
+    if (voltage > (vehicle()->BMSIf.pack_open_voltage * 0.98f * 0.1f))
     {
+        // arm AIR here, and here only. In the single sequence from precharging -> HV_ACTIVE
+        air_if.arm();
         STATE = VSM_STATES::HV_ACTIVE;
     }
 
@@ -212,16 +216,24 @@ VSM_FAULTS VSMTask::run_precharging()
 }
 VSM_FAULTS VSMTask::run_hv_active()
 {
-    float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
+    double link_voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
-    // close AIRs here
-    if (voltage < DATA.nominal_bus_votlage * 0.95f)
+    if (link_voltage < (vehicle()->BMSIf.pack_open_voltage * 0.98 * 0.1))
     {
+        // early fault if in HV_ACTIVE voltage is not nominal.
         STATE = VSM_STATES::FAULT;
         return VSM_FAULTS::BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING;
     }
 
-    if (voltage >= DATA.nominal_bus_votlage * 0.99f)
+    if (!air_if.get_status())
+    {
+        air_if.close(); // early exit to prevent two state transitions in one cycle.
+        return VSM_FAULTS::NO_FAULT;
+    }
+    return VSM_FAULTS::NO_FAULT;
+
+    // tight threshold check for BMS OC voltage = Link Voltage
+    if (link_voltage >= (vehicle()->BMSIf.pack_open_voltage * 0.99 * 0.1))
     {
         STATE = VSM_STATES::ARMED;
     }
@@ -232,7 +244,7 @@ VSM_FAULTS VSMTask::run_armed()
 {
     bool driver_switch;
     if (hardware_->drive_enable.get(&driver_switch) != 0)
-    { // throw runtime except *\}
+    {
     }
 
     if (driver_switch)
@@ -287,8 +299,8 @@ VSM_FAULTS VSMTask::run_drive()
 }
 VSM_FAULTS VSMTask::run_fault()
 {
-    // SAFE AIR CTRL
-    // zero out tq commands    transmit_drive_enables();
+    air_if.throw_fault();
+    transmit_drive_enables(); // state is set to FAULT here so transmit drive enables disables inverter drive.
 
     LOG_ERR("IN FAULTED STATE");
     LOG_ERR("VEHICLE FAULT VECTOR: %llu", DATA.FAULTS.to_ullong());
@@ -311,9 +323,33 @@ VSM_FAULTS VSMTask::run_shutdown()
     if (averaged_wheel_rpm < 1 && vehicle()->APPSIf.average_pedal_percent < 0.01f)
     {
 
-        // FORCE AIRs LOW
         STATE = VSM_STATES::READY;
     }
 
     return VSM_FAULTS::NO_FAULT;
+}
+
+void VSMTask::on_init()
+{
+    gpioa_ = DEVICE_DT_GET(DT_NODELABEL(gpioa));
+
+    LOG_INF("Initializing AIR");
+
+    if (air_if.init() != 0)
+    {
+        LOG_ERR("AIR contactor class failed initialization");
+    }
+    else
+    {
+        LOG_INF("AIR contactor class successfully initalized");
+    }
+
+    if (prc_if.init(gpioa_, 9, GPIO_OUTPUT_INACTIVE) != 0)
+    {
+        LOG_ERR("Precharge pin failed initialization");
+    }
+    else
+    {
+        LOG_INF("Precharge successfully initalized");
+    }
 }

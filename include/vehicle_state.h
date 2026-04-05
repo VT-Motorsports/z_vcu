@@ -8,7 +8,6 @@
 #include <bitset>
 enum class VSM_STATES
 {
-
     // Default state that is initialized to, not expected to return to unless terminal fault
     POST = 0,
 
