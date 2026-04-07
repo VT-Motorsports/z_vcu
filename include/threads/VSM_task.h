@@ -3,6 +3,7 @@
 #include "gpio.h"
 #include "threads/VSM_task.h"
 #include "vehicle_state.h"
+#include "VSM_faults.h"
 #include "hardware.h"
 #include "threads/periodic_task.h"
 #include "threads/system.h"
@@ -10,18 +11,6 @@
 #include <atomic>
 #include <bitset>
 #include <csetjmp>
-
-enum class VSM_FAULTS : int
-{
-    NO_FAULT = 0,
-    FAULTED = 4, // used when fault type is unknown but we know that a fault has occured
-    INVERTER_VOLTAGE_SKEW = 12,
-    PRECHARGING_TOOK_TOO_LONG = 13,
-    BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING = 14,
-    IMD_FAULT = 1,
-    AMS_FAULT = 2,
-    BSPD_FAULT = 3,
-};
 
 template <typename T> struct InvertersAggregate
 {

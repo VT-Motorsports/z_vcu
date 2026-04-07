@@ -5,6 +5,7 @@
 #include "zephyr/sys/__assert.h"
 
 #include <tuple>
+#include <utility>
 
 LOG_MODULE_REGISTER(contactor);
 
@@ -20,22 +21,21 @@ int contactor::init()
     return code;
 }
 
-int contactor::arm()
+VSM_FAULTS contactor::arm()
 {
 
     if (is_faulted)
     {
         LOG_ERR("Attempt to arm Contactor while Faulted");
-        // swap to enum type
-        return -1;
+        return VSM_FAULTS::CONTACTOR_ATTEMPT_ARM_WHILE_FAULTED;
     }
 
     LOG_WRN("Contactor Armed");
     is_armed = true;
-    return 0;
+    return VSM_FAULTS::NO_FAULT;
 }
 
-int contactor::disarm()
+VSM_FAULTS contactor::disarm()
 {
 
     if (is_closed)
@@ -46,7 +46,7 @@ int contactor::disarm()
     }
 
     is_armed = false;
-    return 0;
+    return VSM_FAULTS::NO_FAULT;
 }
 
 int contactor::open()
@@ -67,25 +67,30 @@ bool contactor::get_status()
 {
     return is_closed;
 }
-int contactor::close()
+VSM_FAULTS contactor::close()
 {
-    __ASSERT(is_armed, "Attempted to close Contactor before Arming. Not allowed");
+
+    if (!is_armed)
+    {
+        LOG_ERR("Attempted to close contactor before arming. Not Allowed");
+        this->throw_fault();
+        return (VSM_FAULTS::CONTACTOR_ATTEMPT_CLOSE_BEFORE_ARM);
+    }
     if (is_faulted)
     {
-        LOG_ERR("Contactor is Faulted, Cannot close Contactor after a fault");
-        return -1;
+        LOG_ERR("Contactor is Faulted, Cannot close Contactor after fault");
+        return VSM_FAULTS::CONTACTOR_FAULTED;
     }
     gpio_ref.set(true);
-    LOG_INF("Contactor closed");
+    LOG_INF("Contactor Closed ");
     is_armed = false;
     is_closed = true;
-    return 0;
+    return VSM_FAULTS::NO_FAULT;
 }
 
-int contactor::throw_fault()
+void contactor::throw_fault()
 {
     LOG_ERR("Contactor has been placed into fault state. Cannot be cleared without restarting vehicle");
     std::ignore = this->open();
     is_faulted = true;
-    return 0;
 }
