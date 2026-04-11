@@ -6,3 +6,5 @@ ColumnLimit: 120
 AllowShortBlocksOnASingleLine: Never
 AllowShortFunctionsOnASingleLine: None
 SortIncludes: Never
+BreakBeforeBraces: Attach
+SeparateDefinitionBlocks: Always

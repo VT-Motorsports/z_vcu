@@ -22,20 +22,14 @@ K_THREAD_STACK_DEFINE(VSM_stack, 2048);
 
 static VSMTask VSM_task_instance;
 
-void VSMTask::transmit_drive_enables()
-{
+void VSMTask::transmit_drive_enables() {
 
-    if (STATE == VSM_STATES::READY)
-    {
-        for (auto &c : vehicle()->INVERTERS)
-        {
+    if (STATE == VSM_STATES::READY) {
+        for (auto &c : vehicle()->INVERTERS) {
             c.cmd_drive_enable = 1;
         }
-    }
-    else
-    {
-        for (auto c : vehicle()->INVERTERS)
-        {
+    } else {
+        for (auto &c : vehicle()->INVERTERS) {
             c.cmd_drive_enable = 0;
         }
     }
@@ -54,66 +48,54 @@ void VSMTask::transmit_drive_enables()
     hardware_->can1.send(&drive_enable, K_MSEC(1));
 }
 
-void VSMTask::run()
-{
+void VSMTask::run() {
 
     hardware_->led_orange.toggle();
 
     VSM_FAULTS fault_state = VSM_FAULTS::NO_FAULT;
 
-    switch (this->STATE)
-    {
+    switch (this->STATE) {
     case VSM_STATES::POST: {
         fault_state = run_post();
-    }
-    break;
+    } break;
     case VSM_STATES::READY: {
         fault_state = run_ready();
-    }
-    break;
+    } break;
 
     case VSM_STATES::PRECHARGING: {
         fault_state = run_precharging();
-    }
-    break;
+    } break;
 
     case VSM_STATES::HV_ACTIVE: {
         fault_state = run_hv_active();
-    }
-    break;
+    } break;
 
     case VSM_STATES::ARMED: {
         fault_state = run_armed();
-    }
-    break;
+    } break;
 
     case VSM_STATES::RTDS: {
         fault_state = run_rtds();
-    }
-    break;
+    } break;
 
     case VSM_STATES::DRIVE: {
         fault_state = run_drive();
-    }
-    break;
+    } break;
 
     case VSM_STATES::FAULT: {
         fault_state = run_fault();
-    }
-    break;
+    } break;
 
     case VSM_STATES::SHUTDOWN: {
         fault_state = run_shutdown();
-    }
-    break;
+    } break;
 
     default:
 
         __ASSERT(false, "FALL THROUGH IN VSM SWITCH CASE");
     }
 
-    if (fault_state != VSM_FAULTS::NO_FAULT)
-    {
+    if (fault_state != VSM_FAULTS::NO_FAULT) {
         DATA.FAULTS.set(std::to_underlying(fault_state));
         STATE = VSM_STATES::FAULT;
         std::ignore = run_fault();
@@ -125,18 +107,16 @@ void VSMTask::run()
     return;
 }
 
-VSMTask &get_VSM_task()
-{
+VSMTask &get_VSM_task() {
     return VSM_task_instance;
 }
-void VSMTask::injectVehicleState(void)
-{
+
+void VSMTask::injectVehicleState(void) {
     this->vehicle()->VSM_STATE = &this->STATE;
     this->vehicle()->VSM_If = &this->DATA;
 }
 
-void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms, int priority)
-{
+void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms, int priority) {
     VSM_task_instance.set_system(sys);
     VSM_task_instance.set_hardware(hw);
     VSM_task_instance.start(VSM_stack, K_THREAD_STACK_SIZEOF(VSM_stack), period_ms, priority, v, K_FP_REGS);
@@ -144,41 +124,35 @@ void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_
     LOG_INF("VSM task started (%u ms period)", period_ms);
 }
 
-void VSMTask::check_faults(void)
-{
+void VSMTask::check_faults(void) {
     // checking for inverter voltage skew
     InvertersAggregate<int16_t> inp_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
-    [[unlikely]] if (inp_voltage.skew() > DATA.max_inverter_voltage_delta)
-    {
+    [[unlikely]] if (inp_voltage.skew() > DATA.max_inverter_voltage_delta) {
         DATA.FAULTS.set(std::to_underlying(VSM_FAULTS::INVERTER_VOLTAGE_SKEW), true);
     }
 
     // ADD GPIO checks for shutdown faults
 }
 
-VSM_FAULTS VSMTask::run_post()
-{
+VSM_FAULTS VSMTask::run_post() {
     __ASSERT(system_ && hardware_ && vehicle(),
              "System or Hardware or Vehicle struct not initialized before starting VSM. Rebooting");
 
     check_faults();
     float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
-    if (voltage < 5.0f)
-    {
+    if (voltage < 5.0f) {
         STATE = VSM_STATES::READY;
     }
 
     return VSM_FAULTS::NO_FAULT;
 }
 
-VSM_FAULTS VSMTask::run_ready()
-{
+VSM_FAULTS VSMTask::run_ready() {
     // checks if any faults were set in the check_fault bitset, if set call FAULT handlers
-    air_if.disarm();
+    std::ignore = air_if.disarm();
     check_faults();
-    if (DATA.FAULTS.any())
-    {
+    if (DATA.FAULTS.any()) {
         return VSM_FAULTS::FAULTED;
     }
 
@@ -186,8 +160,7 @@ VSM_FAULTS VSMTask::run_ready()
 
     float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
-    if (voltage > 20.0f)
-    {
+    if (voltage > 20.0f) {
         DATA.precharging_start_time = k_uptime_get();
         this->STATE = VSM_STATES::PRECHARGING;
     }
@@ -195,88 +168,87 @@ VSM_FAULTS VSMTask::run_ready()
     return VSM_FAULTS::NO_FAULT;
 }
 
-VSM_FAULTS VSMTask::run_precharging()
-{
-    if (k_uptime_get() > (DATA.precharging_start_time + DATA.max_precharging_time))
-    {
+VSM_FAULTS VSMTask::run_precharging() {
+    if (k_uptime_get() > (DATA.precharging_start_time + DATA.max_precharging_time)) {
         this->STATE = VSM_STATES::FAULT;
         return VSM_FAULTS::PRECHARGING_TOOK_TOO_LONG;
     }
     float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
     // NEEDS TO BE UPDATED TO READ LIVE BMS VOLTAGE, WILL NOT WORK AS SoC changes
-    if (voltage > (vehicle()->BMSIf.pack_open_voltage * 0.98f * 0.1f))
-    {
+    if (voltage > (vehicle()->BMSIf.pack_open_voltage * 0.98f * 0.1f)) {
         // arm AIR here, and here only. In the single sequence from precharging -> HV_ACTIVE
-        air_if.arm();
+        VSM_FAULTS arming_fault = air_if.arm();
+        if (arming_fault != VSM_FAULTS::NO_FAULT) {
+            DATA.FAULTS.set(std::to_underlying(arming_fault));
+            return VSM_FAULTS::FAULTED;
+        }
+
         STATE = VSM_STATES::HV_ACTIVE;
     }
 
     return VSM_FAULTS::NO_FAULT;
 }
-VSM_FAULTS VSMTask::run_hv_active()
-{
+
+VSM_FAULTS VSMTask::run_hv_active() {
     double link_voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
-    if (link_voltage < (vehicle()->BMSIf.pack_open_voltage * 0.98 * 0.1))
-    {
+    if (link_voltage < (vehicle()->BMSIf.pack_open_voltage * 0.98 * 0.1)) {
         // early fault if in HV_ACTIVE voltage is not nominal.
         STATE = VSM_STATES::FAULT;
         return VSM_FAULTS::BUS_VOLTAGE_DROPPED_AFTER_PRECHARGING;
     }
 
-    if (!air_if.get_status())
-    {
-        air_if.close(); // early exit to prevent two state transitions in one cycle.
+    if (!air_if.get_closed()) {
+
+        VSM_FAULTS closing_fault = air_if.close(); // early exit to prevent two state transitions in one cycle.
+
+        if (closing_fault != VSM_FAULTS::NO_FAULT) {
+            DATA.FAULTS.set(std::to_underlying(closing_fault));
+        }
+
         return VSM_FAULTS::NO_FAULT;
     }
-    return VSM_FAULTS::NO_FAULT;
 
     // tight threshold check for BMS OC voltage = Link Voltage
-    if (link_voltage >= (vehicle()->BMSIf.pack_open_voltage * 0.99 * 0.1))
-    {
+    if (link_voltage >= (vehicle()->BMSIf.pack_open_voltage * 0.99 * 0.1)) {
         STATE = VSM_STATES::ARMED;
     }
 
     return VSM_FAULTS::NO_FAULT;
 }
-VSM_FAULTS VSMTask::run_armed()
-{
+
+VSM_FAULTS VSMTask::run_armed() {
     bool driver_switch;
-    if (hardware_->drive_enable.get(&driver_switch) != 0)
-    {
+    if (hardware_->drive_enable.get(&driver_switch) != 0) {
     }
 
-    if (driver_switch)
-    {
+    if (driver_switch) {
         STATE = VSM_STATES::RTDS;
         DATA.RTDS_start_time = k_uptime_get();
     }
 
     return VSM_FAULTS::NO_FAULT;
 }
-VSM_FAULTS VSMTask::run_rtds()
-{
-    if (k_uptime_get() > (DATA.RTDS_start_time + (DATA.RTDS_sound_length * 3)))
-    {
+
+VSM_FAULTS VSMTask::run_rtds() {
+    if (k_uptime_get() > (DATA.RTDS_start_time + (DATA.RTDS_sound_length * 3))) {
         DATA.RTDS_start_time = k_uptime_get();
     }
 
-    if (k_uptime_delta(&DATA.RTDS_start_time) > DATA.RTDS_sound_length)
-    {
+    if (k_uptime_delta(&DATA.RTDS_start_time) > DATA.RTDS_sound_length) {
         STATE = VSM_STATES::DRIVE;
     }
 
     return VSM_FAULTS::NO_FAULT;
 }
-VSM_FAULTS VSMTask::run_drive()
-{
+
+VSM_FAULTS VSMTask::run_drive() {
     check_faults();
 
     transmit_drive_enables();
 
-    if (DATA.FAULTS.any())
-    {
+    if (DATA.FAULTS.any()) {
         STATE = VSM_STATES::FAULT;
         return VSM_FAULTS::FAULTED;
     }
@@ -289,18 +261,17 @@ VSM_FAULTS VSMTask::run_drive()
     DATA.estimated_link_voltage =
         vehicle()->VSM_If->nominal_bus_votlage - (DATA.inverter_current_summed * DATA.estimated_pack_resistance);
 
-    if (DATA.dc_link_voltage < DATA.estimated_link_voltage)
-    {
+    if (DATA.dc_link_voltage < DATA.estimated_link_voltage) {
         LOG_WRN("AIRs Opened");
         STATE = VSM_STATES::SHUTDOWN;
     }
 
     return VSM_FAULTS::NO_FAULT;
 }
-VSM_FAULTS VSMTask::run_fault()
-{
-    air_if.throw_fault();
-    transmit_drive_enables(); // state is set to FAULT here so transmit drive enables disables inverter drive.
+
+VSM_FAULTS VSMTask::run_fault() {
+    VSM_FAULTS fault = air_if.throw_fault();
+    DATA.FAULTS.set(std::to_underlying(fault));
 
     LOG_ERR("IN FAULTED STATE");
     LOG_ERR("VEHICLE FAULT VECTOR: %llu", DATA.FAULTS.to_ullong());
@@ -308,20 +279,20 @@ VSM_FAULTS VSMTask::run_fault()
     return VSM_FAULTS::NO_FAULT;
 }
 
-VSM_FAULTS VSMTask::run_shutdown()
-{
+VSM_FAULTS VSMTask::run_shutdown() {
 
     check_faults();
-    if (DATA.FAULTS.any())
-    {
+    std::ignore = air_if.open();
+
+    std::ignore = air_if.disarm();
+    if (DATA.FAULTS.any()) {
         return VSM_FAULTS::FAULTED;
     }
 
     InvertersAggregate<int32_t> erpm = reduce_inverter(&DTI_Inverter::erpm);
     int32_t averaged_wheel_rpm = erpm.avg() / vehicle()->INVERTERS[0].pole_pairs;
 
-    if (averaged_wheel_rpm < 1 && vehicle()->APPSIf.average_pedal_percent < 0.01f)
-    {
+    if (averaged_wheel_rpm < 1 && vehicle()->APPSIf.average_pedal_percent < 0.01f) {
 
         STATE = VSM_STATES::READY;
     }
@@ -329,27 +300,20 @@ VSM_FAULTS VSMTask::run_shutdown()
     return VSM_FAULTS::NO_FAULT;
 }
 
-void VSMTask::on_init()
-{
+void VSMTask::on_init() {
     gpioa_ = DEVICE_DT_GET(DT_NODELABEL(gpioa));
 
     LOG_INF("Initializing AIR");
 
-    if (air_if.init() != 0)
-    {
+    if (air_if.init() != 0) {
         LOG_ERR("AIR contactor class failed initialization");
-    }
-    else
-    {
+    } else {
         LOG_INF("AIR contactor class successfully initalized");
     }
 
-    if (prc_if.init(gpioa_, 9, GPIO_OUTPUT_INACTIVE) != 0)
-    {
+    if (prc_if.init(gpioa_, 9, GPIO_OUTPUT_INACTIVE) != 0) {
         LOG_ERR("Precharge pin failed initialization");
-    }
-    else
-    {
+    } else {
         LOG_INF("Precharge successfully initalized");
     }
 }

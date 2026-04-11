@@ -10,8 +10,7 @@
 
 LOG_MODULE_REGISTER(main);
 
-int main(void)
-{
+int main(void) {
     LOG_INF("***VCU ENTERED MAIN***");
 
     static VehicleState vehicle;
@@ -20,19 +19,20 @@ int main(void)
 
     LOG_INF("=== VCU Starting ===");
 
-    if (system.init() != 0)
-    {
+    if (system.init() != 0) {
         LOG_ERR("System init failed!");
         return -1;
     }
 
     // before initializing any threads we guarantee that hardware has initialized and APIs are available
-    if (hardware.init() != 0)
-    {
+    if (hardware.init() != 0) {
         LOG_ERR("Hardware init failed!");
         return -2;
     }
 
+    hardware.horn_signal.set(1);
+    k_msleep(100);
+    hardware.horn_signal.set(0);
     // Start the APPS pedal processing task (100 ms period, priority 5).
     start_apps_task(&vehicle, &hardware);
 
@@ -46,8 +46,7 @@ int main(void)
 
     LOG_INF("=== VCU Ready ===");
 
-    while (1)
-    {
+    while (1) {
         k_sleep(K_FOREVER);
     }
 }

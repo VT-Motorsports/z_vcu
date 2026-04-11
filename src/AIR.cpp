@@ -9,23 +9,19 @@
 
 LOG_MODULE_REGISTER(contactor);
 
-contactor::contactor() : gpioa_(DEVICE_DT_GET(DT_NODELABEL(gpioa)))
-{
+contactor::contactor() : gpioa_(DEVICE_DT_GET(DT_NODELABEL(gpioa))) {
 }
 
-int contactor::init()
-{
+int contactor::init() {
     // hardcoded for AIR+ ctrl pin on VCU v2 2026
     int code = gpio_ref.init(gpioa_, 8, GPIO_OUTPUT_LOW);
 
     return code;
 }
 
-VSM_FAULTS contactor::arm()
-{
+VSM_FAULTS contactor::arm() {
 
-    if (is_faulted)
-    {
+    if (is_faulted) {
         LOG_ERR("Attempt to arm Contactor while Faulted");
         return VSM_FAULTS::CONTACTOR_ATTEMPT_ARM_WHILE_FAULTED;
     }
@@ -35,11 +31,9 @@ VSM_FAULTS contactor::arm()
     return VSM_FAULTS::NO_FAULT;
 }
 
-VSM_FAULTS contactor::disarm()
-{
+VSM_FAULTS contactor::disarm() {
 
-    if (is_closed)
-    {
+    if (is_closed) {
         gpio_ref.set(false);
         is_closed = false;
         LOG_ERR("Contactor Disarmed before Opening. Contactor still opened and disarmed");
@@ -49,8 +43,7 @@ VSM_FAULTS contactor::disarm()
     return VSM_FAULTS::NO_FAULT;
 }
 
-int contactor::open()
-{
+int contactor::open() {
     is_armed = false;
     gpio_ref.set(false);
     LOG_INF("Contactor opened");
@@ -59,25 +52,22 @@ int contactor::open()
     return 0;
 }
 
-bool contactor::get_armed()
-{
+bool contactor::get_armed() const {
     return is_armed;
 }
-bool contactor::get_status()
-{
+
+bool contactor::get_closed() const {
     return is_closed;
 }
-VSM_FAULTS contactor::close()
-{
 
-    if (!is_armed)
-    {
+VSM_FAULTS contactor::close() {
+
+    if (!is_armed) {
         LOG_ERR("Attempted to close contactor before arming. Not Allowed");
-        this->throw_fault();
+        std::ignore = this->throw_fault();
         return (VSM_FAULTS::CONTACTOR_ATTEMPT_CLOSE_BEFORE_ARM);
     }
-    if (is_faulted)
-    {
+    if (is_faulted) {
         LOG_ERR("Contactor is Faulted, Cannot close Contactor after fault");
         return VSM_FAULTS::CONTACTOR_FAULTED;
     }
@@ -88,9 +78,10 @@ VSM_FAULTS contactor::close()
     return VSM_FAULTS::NO_FAULT;
 }
 
-void contactor::throw_fault()
-{
+VSM_FAULTS contactor::throw_fault() {
     LOG_ERR("Contactor has been placed into fault state. Cannot be cleared without restarting vehicle");
     std::ignore = this->open();
     is_faulted = true;
+
+    return VSM_FAULTS::CONTACTOR_FAULTED;
 }
