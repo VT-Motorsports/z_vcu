@@ -12,21 +12,18 @@
 
 // convert 16 bits starting at d to a 16 bit value
 // packet order coming in from CAN is MSB, and STM would read as LSB.
-static inline int16_t be16(const uint8_t *d)
-{
+static inline int16_t be16(const uint8_t *d) {
     return (int16_t)(((uint16_t)d[0] << 8) | d[1]);
 }
 
 // convert 16 bits starting at d to a 32 bit value
 // packet order coming in from CAN is MSB, and STM would read as LSB if we pointer casted.
-static inline int32_t be32(const uint8_t *d)
-{
+static inline int32_t be32(const uint8_t *d) {
     return (int32_t)(((uint32_t)d[0] << 24) | ((uint32_t)d[1] << 16) | ((uint32_t)d[2] << 8) | d[3]);
 }
 
 // --- 0x1F: Control mode, Target Iq, Motor position, isMotorStill ---
-static void decode_0x1F(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x1F(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -39,8 +36,7 @@ static void decode_0x1F(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x20: ERPM, Duty cycle, Input Voltage ---
-static void decode_0x20(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x20(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -52,8 +48,7 @@ static void decode_0x20(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x21: AC Current, DC Current ---
-static void decode_0x21(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x21(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -64,8 +59,7 @@ static void decode_0x21(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x22: Controller Temp, Motor Temp, Fault Code ---
-static void decode_0x22(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x22(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -77,8 +71,7 @@ static void decode_0x22(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x23: Id, Iq (FOC components) ---
-static void decode_0x23(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x23(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -89,8 +82,7 @@ static void decode_0x23(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x24: Throttle, Brake, Digital I/O, Drive Enable, Limits, CAN map ---
-static void decode_0x24(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x24(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -135,8 +127,7 @@ static void decode_0x24(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x25: Configured and Available AC Currents ---
-static void decode_0x25(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x25(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -149,8 +140,7 @@ static void decode_0x25(const struct can_frame *frame, volatile VehicleState *vd
 }
 
 // --- 0x26: Configured and Available DC Currents ---
-static void decode_0x26(const struct can_frame *frame, volatile VehicleState *vd, Corner c)
-{
+static void decode_0x26(const struct can_frame *frame, volatile VehicleState *vd, Corner c) {
     volatile auto &inv = vd->INVERTERS[c];
     const uint8_t *d = frame->data;
 
@@ -167,145 +157,137 @@ static void decode_0x26(const struct can_frame *frame, volatile VehicleState *vd
 // ============================================================================
 
 // Packet 0x1F
-void decode_dti_fl_0x1F(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x1F(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x1F(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x1F(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x1F(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x1F(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x1F(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x1F(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x1F(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x1F(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x1F(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x1F(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x20
-void decode_dti_fl_0x20(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x20(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x20(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x20(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x20(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x20(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x20(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x20(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x20(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x20(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x20(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x20(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x21
-void decode_dti_fl_0x21(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x21(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x21(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x21(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x21(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x21(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x21(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x21(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x21(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x21(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x21(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x21(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x22
-void decode_dti_fl_0x22(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x22(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x22(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x22(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x22(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x22(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x22(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x22(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x22(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x22(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x22(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x22(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x23
-void decode_dti_fl_0x23(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x23(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x23(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x23(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x23(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x23(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x23(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x23(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x23(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x23(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x23(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x23(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x24
-void decode_dti_fl_0x24(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x24(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x24(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x24(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x24(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x24(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x24(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x24(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x24(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x24(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x24(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x24(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x25
-void decode_dti_fl_0x25(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x25(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x25(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x25(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x25(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x25(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x25(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x25(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x25(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x25(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x25(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x25(f, vd, REAR_RIGHT);
 }
 
 // Packet 0x26
-void decode_dti_fl_0x26(const struct can_frame *f, volatile VehicleState *vd)
-{
+void decode_dti_fl_0x26(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x26(f, vd, FRONT_LEFT);
 }
-void decode_dti_fr_0x26(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_fr_0x26(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x26(f, vd, FRONT_RIGHT);
 }
-void decode_dti_rl_0x26(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rl_0x26(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x26(f, vd, REAR_LEFT);
 }
-void decode_dti_rr_0x26(const struct can_frame *f, volatile VehicleState *vd)
-{
+
+void decode_dti_rr_0x26(const struct can_frame *f, volatile VehicleState *vd) {
     decode_0x26(f, vd, REAR_RIGHT);
 }
