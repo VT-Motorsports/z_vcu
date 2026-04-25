@@ -31,7 +31,7 @@ int Hardware::init() {
     return 0;
 }
 
-Hardware::Hardware(VehicleState *state) : can1(state), can2(state), vehicle(state) {
+Hardware::Hardware(VehicleState *state) : can1(state), vehicle(state) {
 }
 
 int Hardware::initializeADCs() {
@@ -179,16 +179,16 @@ int Hardware::initializeGPIOs() {
 }
 
 int Hardware::initializeCANs() {
-    // Get CAN devices
+    // CAN2 intentionally disabled at the device tree level (status = "disabled")
+    // due to STM32H7 errata 2.24.2: simultaneous CPU/FDCAN MRAM reads return
+    // corrupted data when both FDCANs are active. All traffic on CAN1.
     can1_dev = DEVICE_DT_GET(DT_NODELABEL(fdcan1));
-    can2_dev = DEVICE_DT_GET(DT_NODELABEL(fdcan2));
 
-    if (!can1_dev || !can2_dev) {
-        LOG_ERR("Failed to get CAN devices");
+    if (!can1_dev) {
+        LOG_ERR("Failed to get CAN1 device");
         return -1;
     }
 
-    // Initialize CAN1 (1 Mbps)
     if (can1.init(can1_dev, 1000000, 875) != 0) {
         LOG_ERR("Failed to init CAN1");
         return -10;
@@ -199,20 +199,6 @@ int Hardware::initializeCANs() {
         return -11;
     }
 
-    // Initialize CAN2 (1 Mbps)
-    if (can2.init(can2_dev, 1000000, 875) != 0) {
-        LOG_ERR("Failed to init CAN2");
-        return -20;
-    }
-
-    if (can2.start() != 0) {
-        LOG_ERR("Failed to start CAN2");
-        return -21;
-    }
-
-    can1.set_mode(CAN_MODE_LOOPBACK);
-    can2.set_mode(CAN_MODE_LOOPBACK);
-
-    LOG_INF("CANs initialized");
+    LOG_INF("CANs initialized (CAN1 only)");
     return 0;
 }

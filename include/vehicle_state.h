@@ -127,11 +127,11 @@ struct DTI_Inverter {
 };
 
 struct Analog {
-    static uint16_t channels[8];
+    uint16_t channels[8] = {};
     static constexpr float VREF = 5.0f;
-    static constexpr float MAX_COUNT = 65535.0f;
+    static constexpr float MAX_COUNT = 4096.0f;
 
-    static float get_voltage(int channel) {
+    float get_voltage(int channel) const volatile {
         return (channels[channel] / MAX_COUNT) * VREF;
     }
 };

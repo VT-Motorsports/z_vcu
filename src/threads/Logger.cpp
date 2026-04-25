@@ -14,16 +14,16 @@ void LoggerTask::run() {
     hardware_->led_blue.toggle();
     struct can_frame frame{};
     encode_apps_state(&frame, vehicle());
-    hardware_->can2.send(&frame, K_MSEC(1));
+    hardware_->can1.send(&frame, K_MSEC(1));
     for (int i = 0; i < 8; i++) {
         vehicle()->analogIf.channels[i] = hardware_->getADCValue(i);
     }
 
-    // work to encode and send analog frames
-    struct can_frame analog_frames[4];
+    // work to encode and send analog frames (8 channels, 4 per frame = 2 frames)
+    struct can_frame analog_frames[2];
     encode_analog_channels(analog_frames, vehicle());
     for (const can_frame analog_frame : analog_frames) {
-        hardware_->can2.send(&analog_frame, K_MSEC(1));
+        hardware_->can1.send(&analog_frame, K_MSEC(1));
     }
 
     // work to encode and send VSM frames

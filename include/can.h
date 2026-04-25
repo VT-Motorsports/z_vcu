@@ -20,7 +20,6 @@ class CanBus
     uint32_t frames_sent;
 
     static void can1_rx_isr(const struct device *dev, struct can_frame *frame, void *self_ptr);
-    static void can2_rx_isr(const struct device *dev, struct can_frame *frame, void *self_ptr);
     void dispatch(const struct can_frame *frame);
     int register_handlers();
 

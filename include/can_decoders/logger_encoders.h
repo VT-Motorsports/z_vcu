@@ -5,7 +5,7 @@
 #include "vehicle_state.h"
 
 // ============================================================================
-// VCU Logger CAN Encoders — custom telemetry frames transmitted on CAN2
+// VCU Logger CAN Encoders — custom telemetry frames transmitted on CAN1
 //
 // Frame format uses big-endian byte order to match DTI encoder convention.
 // Scaled integer encoding avoids floating-point on the receiver side.
@@ -13,9 +13,9 @@
 // Usage:
 //   struct can_frame f{};
 //   encode_apps_state(&f, vehicle());
-//   hardware_->can2.send(&f, K_NO_WAIT);
+//   hardware_->can1.send(&f, K_NO_WAIT);
 //
-// TX CAN IDs (CAN2):
+// TX CAN IDs (CAN1):
 //   APPS state (0x100): pedal1, pedal2, commanded torque, error flags
 // ============================================================================
 
@@ -27,7 +27,7 @@
 // Byte 7:   0x00 reserved
 void encode_apps_state(struct can_frame *frame, const volatile VehicleState *vd);
 
-// --- ADC analog channels (ID 0x200, DLC 8, four channels per frame) ---
+// --- ADC analog channels (ID 0x200, 0x201, DLC 8, four channels per frame) ---
 // Scale: voltage = channels[i] / 65535.0f * 5.0f, transmitted as uint16 * 100
 // Range: 0–500 (0.00V–5.00V), resolution: 0.01V
 void encode_analog_channels(struct can_frame frames[2], const volatile VehicleState *vd);
@@ -37,7 +37,7 @@ void encode_analog_channels(struct can_frame frames[2], const volatile VehicleSt
 //           Bit index matches VSM_FAULTS enum value.
 void encode_vsm_faults(struct can_frame *frame, const volatile VehicleState *vd);
 
-// --- VSM state (ID 0x102, DLC 8) ---
+// --- VSM state (ID 0x102, DLC  8) ---
 // Byte 0:   state enum (VSM state machine: POST/Precharge/Armed/Drive/Fault)
 // Byte 1:   flags — bit 0: faulted, bit 1: RTDS active, bits 2-7: reserved
 // Byte 2-5: precharge elapsed time (ms), uint32 big-endian (0 if not precharging)

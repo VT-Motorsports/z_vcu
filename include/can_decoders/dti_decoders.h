@@ -12,9 +12,9 @@
 // Node IDs:  FL=22  FR=23  RL=24  RR=25
 //
 // Registration example:
-//   can2.register_handler((0x1F << 5) | 22, decode_dti_fl_0x1F);  // 0x3F6
-//   can2.register_handler((0x20 << 5) | 22, decode_dti_fl_0x20);  // 0x416
-//   can2.register_handler((0x20 << 5) | 23, decode_dti_fr_0x20);  // 0x417
+//   can1.register_handler((0x1F << 5) | 22, decode_dti_fl_0x1F);  // 0x3F6
+//   can1.register_handler((0x20 << 5) | 22, decode_dti_fl_0x20);  // 0x416
+//   can1.register_handler((0x20 << 5) | 23, decode_dti_fr_0x20);  // 0x417
 //   ...
 // Max ID = (0x26 << 5) | 25 = 0x4D9 (1241) — fits in 2048 table
 // ============================================================================

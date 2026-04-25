@@ -117,32 +117,4 @@ void DiagnosticsTask::run()
         }
     }
 
-    if (hardware_ && hardware_->can2.is_initialized())
-    {
-        enum can_state state;
-        if (hardware_->can2.get_state(&state) == 0)
-        {
-            switch (state)
-            {
-            case CAN_STATE_ERROR_ACTIVE:
-                LOG_INF("CAN2: Active");
-                break;
-            case CAN_STATE_ERROR_WARNING:
-                LOG_WRN("CAN2: Warning");
-                break;
-            case CAN_STATE_ERROR_PASSIVE:
-                LOG_WRN("CAN2: Error Passive");
-                break;
-            case CAN_STATE_BUS_OFF:
-                LOG_ERR("CAN2: Bus Off");
-                break;
-            case CAN_STATE_STOPPED:
-                LOG_INF("CAN2: Stopped");
-                break;
-            default:
-                LOG_ERR("CAN2: Unknown state");
-                break;
-            }
-        }
-    }
 }

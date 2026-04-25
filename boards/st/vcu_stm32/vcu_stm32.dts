@@ -191,7 +191,7 @@
 		 <&rcc STM32_SRC_PLL2_Q FDCAN_SEL(2)>;
 	pinctrl-0 = <&fdcan2_rx_pb5 &fdcan2_tx_pb6>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled";
 };
 
 &adc1 {
