@@ -2,8 +2,7 @@
 #pragma once
 #include <zephyr/drivers/adc.h>
 
-class AdcChannel
-{
+class AdcChannel {
   private:
     const struct device *adc_dev_;
     struct adc_channel_cfg channel_cfg_;

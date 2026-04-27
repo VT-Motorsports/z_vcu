@@ -45,7 +45,6 @@ class Hardware
     GpioPin debug_gpio[4];
 
     CanBus can1;
-    CanBus can2;
 
     int init();
     uint16_t getADCValue(uint8_t channel);
@@ -59,7 +58,6 @@ class Hardware
     const struct device *gpiod_ = nullptr;
     const struct device *gpioe_ = nullptr;
     const struct device *can1_dev = nullptr;
-    const struct device *can2_dev = nullptr;
     int initializeADCs();
     int initializeGPIOs();
     int initializeCANs();

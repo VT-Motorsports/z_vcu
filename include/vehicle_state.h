@@ -6,9 +6,7 @@
 #include <optional>
 #include <atomic>
 #include <bitset>
-enum class VSM_STATES
-{
-
+enum class VSM_STATES {
     // Default state that is initialized to, not expected to return to unless terminal fault
     POST = 0,
 
@@ -40,8 +38,7 @@ enum class VSM_STATES
     SHUTDOWN = 8,
 };
 
-enum Corner : uint8_t
-{
+enum Corner : uint8_t {
     FRONT_LEFT = 0,
     FRONT_RIGHT = 1,
     REAR_LEFT = 2,
@@ -49,8 +46,7 @@ enum Corner : uint8_t
     NUM_CORNERS = 4
 };
 
-struct DTI_Inverter
-{
+struct DTI_Inverter {
 
     static constexpr int16_t pole_pairs = 4;
     static constexpr int16_t max_ac_current_x10 = 1000; // 100 A_pk — tune per motor
@@ -130,13 +126,17 @@ struct DTI_Inverter
     uint8_t cmd_drive_enable; // 0 = disabled, 1 = enabled
 };
 
-struct Analog
-{
-    uint16_t channels[8];
+struct Analog {
+    uint16_t channels[8] = {};
+    static constexpr float VREF = 5.0f;
+    static constexpr float MAX_COUNT = 4096.0f;
+
+    float get_voltage(int channel) const volatile {
+        return (channels[channel] / MAX_COUNT) * VREF;
+    }
 };
 
-enum APPS_ERRORS
-{
+enum APPS_ERRORS {
     PEDAL_AGREEMENT = 0,
     SHORT_CIRCUIT_P1 = 1,
     SHORT_CIRCUIT_P2 = 2,
@@ -146,28 +146,23 @@ enum APPS_ERRORS
     NUM_ERRORS = 8,
 };
 
-enum PEDAL_SLOPE_DIRECTION
-{
+enum PEDAL_SLOPE_DIRECTION {
     POSITIVE,
     NEGATIVE
 };
 
-namespace APPS_CONSTEXPRS
-{
-static constexpr uint16_t calculateRange(uint16_t highThreshold, uint16_t lowThreshold)
-{
+namespace APPS_CONSTEXPRS {
+static constexpr uint16_t calculateRange(uint16_t highThreshold, uint16_t lowThreshold) {
     return (highThreshold > lowThreshold) ? (highThreshold - lowThreshold) : (lowThreshold - highThreshold);
 }
 
-static constexpr PEDAL_SLOPE_DIRECTION PEDAL_SLOPE_DIRECTION(uint16_t highThreshold, uint16_t lowThreshold)
-{
+static constexpr PEDAL_SLOPE_DIRECTION PEDAL_SLOPE_DIRECTION(uint16_t highThreshold, uint16_t lowThreshold) {
     return (highThreshold > lowThreshold) ? POSITIVE : NEGATIVE;
 }
 
 } // namespace APPS_CONSTEXPRS
 
-struct APPS_data
-{
+struct APPS_data {
     bool errors[APPS_ERRORS::NUM_ERRORS];
     bool faulted;
 
@@ -205,13 +200,11 @@ struct APPS_data
     bool torqueVectoringEnabled = false;
 };
 
-struct BMS_data
-{
+struct BMS_data {
 
     static constexpr int NUM_CELLS = 72;
 
-    struct CellData
-    {
+    struct CellData {
         uint16_t voltage;
         uint16_t open_voltage;
         uint16_t resistance;
@@ -296,8 +289,7 @@ struct BMS_data
     int64_t last_rx_time_ms;
 };
 
-struct VSM_Data
-{
+struct VSM_Data {
 
     static constexpr float nominal_bus_votlage = 302;
     static constexpr int RTDS_sound_length = 200;
@@ -338,8 +330,7 @@ struct VSM_Data
 
 // struct that provides access to sub  Interface structs that house publicly accessible data to whole program.
 // classes that interact with vehicle state should refer to this struct as source of truth
-class VehicleState
-{
+class VehicleState {
   public:
     DTI_Inverter INVERTERS[Corner::NUM_CORNERS];
     Analog analogIf;
