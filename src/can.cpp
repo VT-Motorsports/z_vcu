@@ -1,6 +1,7 @@
 #include "can.h"
 #include "can_decoders/dti_decoders.h"
 
+#include <cstdint>
 #include <zephyr/logging/log.h>
 
 #include "can_decoders/dti_decoders.h"
