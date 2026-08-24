@@ -9,8 +9,7 @@
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/adc.h>
 
-class Hardware
-{
+class Hardware {
   public:
     Hardware(VehicleState *state);
     // ADC Channels (8 total) - referenced as chan0..chan7

@@ -5,17 +5,15 @@
 #include "threads/system.h"
 #include "vehicle_state.h"
 
-class LoggerTask : public PeriodicTask<LoggerTask>
-{
+class LoggerTask : public PeriodicTask<LoggerTask> {
     friend class PeriodicTask<LoggerTask>;
 
   public:
-    void set_system(System *sys)
-    {
+    void set_system(System *sys) {
         system_ = sys;
     }
-    void set_hardware(Hardware *hw)
-    {
+
+    void set_hardware(Hardware *hw) {
         hardware_ = hw;
     }
 
@@ -26,6 +24,6 @@ class LoggerTask : public PeriodicTask<LoggerTask>
     void run();
 };
 
-void start_logger_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms = 50, int priority = 5);
+void start_logger_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_ms = 10, int priority = 5);
 
 LoggerTask &get_logger_task();

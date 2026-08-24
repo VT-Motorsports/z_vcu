@@ -4,13 +4,11 @@
 #include "threads/periodic_task.h"
 #include "vehicle_state.h"
 
-class APPSTask : public PeriodicTask<APPSTask>
-{
+class APPSTask : public PeriodicTask<APPSTask> {
     friend class PeriodicTask<APPSTask>;
 
   public:
-    void set_hardware(Hardware *hw)
-    {
+    void set_hardware(Hardware *hw) {
         hardware_ = hw;
     }
 
@@ -23,9 +21,9 @@ class APPSTask : public PeriodicTask<APPSTask>
     void on_deadline_miss();
     void run();
 
-    float readPedalPercent(uint16_t raw, uint16_t low, uint16_t range, PEDAL_SLOPE_DIRECTION slope);
-    bool checkOpenCircuit(uint16_t raw, uint16_t low_threshold);
-    bool checkShortCircuit(uint16_t raw, uint16_t high_threshold);
+    float readPedalPercent(uint16_t raw, uint16_t drive_rest, uint16_t range, PEDAL_SLOPE_DIRECTION slope);
+    bool checkOpenCircuit(uint16_t raw, uint16_t fault_low_adc);
+    bool checkShortCircuit(uint16_t raw, uint16_t fault_high_adc);
     bool checkPedalAgreement(float p1_pct, float p2_pct);
     bool checkBrakeOverlap(float avg_pct);
 };

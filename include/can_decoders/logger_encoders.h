@@ -32,6 +32,11 @@ void encode_apps_state(struct can_frame *frame, const volatile VehicleState *vd)
 // Range: 0–500 (0.00V–5.00V), resolution: 0.01V
 void encode_analog_channels(struct can_frame frames[2], const volatile VehicleState *vd);
 
+// --- ADC raw channels (ID 0x202, 0x203, DLC 8, four channels per frame) ---
+// Raw 16-bit ADC counts directly from hardware, no scaling applied.
+// Range: 0–65535 counts (0.00V–5.00V at 12-bit/16-bit resolution)
+void encode_analog_channels_raw(struct can_frame frames[2], const volatile VehicleState *vd);
+
 // --- VSM fault vector (ID 0x101, DLC 8) ---
 // Byte 0-7: 64-bit fault bitfield, big-endian
 //           Bit index matches VSM_FAULTS enum value.

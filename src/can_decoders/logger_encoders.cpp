@@ -53,6 +53,21 @@ void encode_analog_channels(struct can_frame frames[2], const volatile VehicleSt
     }
 }
 
+void encode_analog_channels_raw(struct can_frame frames[2], const volatile VehicleState *vd) {
+    for (int f = 0; f < 2; f++) {
+        frames[f].id = 0x202u + f;
+        frames[f].dlc = 8;
+        frames[f].flags = 0;
+        memset(frames[f].data, 0x00, sizeof(frames[f].data));
+
+        for (int i = 0; i < 4; i++) {
+            int ch = f * 4 + i;
+            uint16_t raw = vd->analogIf.channels[ch];
+            put_be16(&frames[f].data[i * 2], raw);
+        }
+    }
+}
+
 void encode_vsm_faults(struct can_frame *frame, const volatile VehicleState *vd) {
     frame->id = 0x101u;
     frame->dlc = 8;

@@ -12,34 +12,32 @@
 #include <bitset>
 #include <csetjmp>
 
-template <typename T> struct InvertersAggregate
-{
+template <typename T> struct InvertersAggregate {
     T sum;
     T min;
     T max;
-    T avg() const
-    {
-        return sum / static_cast<T>(4);
+
+    T avg() const {
+        return sum / static_cast<T>(2);
     }
-    T skew() const
-    {
+
+    T skew() const {
         return max - min;
     }
 };
 
-class VSMTask : public PeriodicTask<VSMTask>
-{
+class VSMTask : public PeriodicTask<VSMTask> {
     friend class PeriodicTask<VSMTask>;
 
   public:
-    void set_system(System *sys)
-    {
+    void set_system(System *sys) {
         system_ = sys;
     }
-    void set_hardware(Hardware *hw)
-    {
+
+    void set_hardware(Hardware *hw) {
         hardware_ = hw;
     }
+
     void injectVehicleState(void);
 
   private:
@@ -77,11 +75,9 @@ class VSMTask : public PeriodicTask<VSMTask>
 
     void run();
 
-    template <typename T> InvertersAggregate<T> const reduce_inverter(T DTI_Inverter::*field) const
-    {
+    template <typename T> InvertersAggregate<T> const reduce_inverter(T DTI_Inverter::*field) const {
         T sum = 0, mn = vehicle()->INVERTERS[0].*field, mx = mn;
-        for (int i = 0; i < 4; i++)
-        {
+        for (int i = 0; i < 4; i++) {
             T val = vehicle()->INVERTERS[i].*field;
             sum += val;
             if (val < mn)

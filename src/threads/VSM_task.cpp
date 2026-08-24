@@ -125,11 +125,26 @@ void start_VSM_task(System *sys, Hardware *hw, VehicleState *v, uint32_t period_
 }
 
 void VSMTask::check_faults(void) {
-    // checking for inverter voltage skew
-    InvertersAggregate<int16_t> inp_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
-    [[unlikely]] if (inp_voltage.skew() > DATA.max_inverter_voltage_delta) {
-        DATA.FAULTS.set(std::to_underlying(VSM_FAULTS::INVERTER_VOLTAGE_SKEW), true);
+
+    InvertersAggregate<int16_t> inv_dc_current = reduce_inverter(&DTI_Inverter::dc_current);
+    DATA.inverter_current_summed.store(inv_dc_current.sum / 10.0f);
+
+    InvertersAggregate<int16_t> inv_dc_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
+    DATA.dc_link_voltage = inv_dc_voltage.avg();
+    DATA.estimated_link_voltage =
+        vehicle()->VSM_If->nominal_bus_votlage - (DATA.inverter_current_summed * DATA.estimated_pack_resistance);
+
+    if (DATA.dc_link_voltage < DATA.estimated_link_voltage) {
+        LOG_WRN("AIRs Opened");
+        STATE = VSM_STATES::SHUTDOWN;
+        air_if.disarm();
     }
+
+    // checking for inverter voltage skew
+    // InvertersAggregate<int16_t> inp_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
+    // [[unlikely]] if (inp_voltage.skew() > DATA.max_inverter_voltage_delta) {
+    //     DATA.FAULTS.set(std::to_underlying(VSM_FAULTS::INVERTER_VOLTAGE_SKEW), true);
+    // }
 
     // ADD GPIO checks for shutdown faults
 }
@@ -151,7 +166,6 @@ VSM_FAULTS VSMTask::run_post() {
 VSM_FAULTS VSMTask::run_ready() {
     // checks if any faults were set in the check_fault bitset, if set call FAULT handlers
     std::ignore = air_if.disarm();
-    check_faults();
     if (DATA.FAULTS.any()) {
         return VSM_FAULTS::FAULTED;
     }
@@ -175,8 +189,10 @@ VSM_FAULTS VSMTask::run_precharging() {
     }
     float voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
+    LOG_INF("bus voltage: %f", voltage);
+
     // NEEDS TO BE UPDATED TO READ LIVE BMS VOLTAGE, WILL NOT WORK AS SoC changes
-    if (voltage > (vehicle()->BMSIf.pack_open_voltage * 0.98f * 0.1f)) {
+    if (voltage > (vehicle()->BMSIf.pack_open_voltage * 0.98f * 0.1f) && (voltage > (280))) {
         // arm AIR here, and here only. In the single sequence from precharging -> HV_ACTIVE
         VSM_FAULTS arming_fault = air_if.arm();
         if (arming_fault != VSM_FAULTS::NO_FAULT) {
@@ -191,6 +207,7 @@ VSM_FAULTS VSMTask::run_precharging() {
 }
 
 VSM_FAULTS VSMTask::run_hv_active() {
+
     double link_voltage = reduce_inverter(&DTI_Inverter::input_voltage).avg();
 
     if (link_voltage < (vehicle()->BMSIf.pack_open_voltage * 0.98 * 0.1)) {
@@ -219,11 +236,15 @@ VSM_FAULTS VSMTask::run_hv_active() {
 }
 
 VSM_FAULTS VSMTask::run_armed() {
+
+    check_faults();
+
     bool driver_switch;
-    if (hardware_->drive_enable.get(&driver_switch) != 0) {
+    if (hardware_->drive_enable.get(&driver_switch) == 1) {
     }
 
-    if (driver_switch) {
+    if (!driver_switch) {
+        hardware_->horn_signal.set(1);
         STATE = VSM_STATES::RTDS;
         DATA.RTDS_start_time = k_uptime_get();
     }
@@ -232,11 +253,16 @@ VSM_FAULTS VSMTask::run_armed() {
 }
 
 VSM_FAULTS VSMTask::run_rtds() {
+
+    check_faults();
+    prc_if.set(false);
+
     if (k_uptime_get() > (DATA.RTDS_start_time + (DATA.RTDS_sound_length * 3))) {
         DATA.RTDS_start_time = k_uptime_get();
     }
 
-    if (k_uptime_delta(&DATA.RTDS_start_time) > DATA.RTDS_sound_length) {
+    if (k_uptime_get() > DATA.RTDS_start_time + DATA.RTDS_sound_length) {
+        hardware_->horn_signal.set(0);
         STATE = VSM_STATES::DRIVE;
     }
 
@@ -253,19 +279,6 @@ VSM_FAULTS VSMTask::run_drive() {
         return VSM_FAULTS::FAULTED;
     }
 
-    InvertersAggregate<int16_t> inv_dc_current = reduce_inverter(&DTI_Inverter::dc_current);
-    DATA.inverter_current_summed.store(inv_dc_current.sum / 10.0f);
-
-    InvertersAggregate<int16_t> inv_dc_voltage = reduce_inverter(&DTI_Inverter::input_voltage);
-    DATA.dc_link_voltage = inv_dc_voltage.avg();
-    DATA.estimated_link_voltage =
-        vehicle()->VSM_If->nominal_bus_votlage - (DATA.inverter_current_summed * DATA.estimated_pack_resistance);
-
-    if (DATA.dc_link_voltage < DATA.estimated_link_voltage) {
-        LOG_WRN("AIRs Opened");
-        STATE = VSM_STATES::SHUTDOWN;
-    }
-
     return VSM_FAULTS::NO_FAULT;
 }
 
@@ -274,7 +287,7 @@ VSM_FAULTS VSMTask::run_fault() {
     DATA.FAULTS.set(std::to_underlying(fault));
 
     LOG_ERR("IN FAULTED STATE");
-    LOG_ERR("VEHICLE FAULT VECTOR: %llu", DATA.FAULTS.to_ullong());
+    LOG_ERR("VEHICLE FAULT VECTOR: %llx", DATA.FAULTS.to_ullong());
 
     return VSM_FAULTS::NO_FAULT;
 }

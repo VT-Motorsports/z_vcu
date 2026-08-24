@@ -49,7 +49,7 @@ enum Corner : uint8_t {
 struct DTI_Inverter {
 
     static constexpr int16_t pole_pairs = 4;
-    static constexpr int16_t max_ac_current_x10 = 1000; // 100 A_pk — tune per motor
+    static constexpr int16_t max_ac_current_x10 = 30; // 3 A_pk — tune per motor
 
     uint8_t node_id;
 
@@ -166,15 +166,24 @@ struct APPS_data {
     bool errors[APPS_ERRORS::NUM_ERRORS];
     bool faulted;
 
-    // calibration values, constexpr set at compile time
+    // ADC channel mapping
     static constexpr int pedal1_adc_channel_num = 0;
     static constexpr int pedal2_adc_channel_num = 1;
-    static constexpr uint16_t pedal1_low_threshold = 10000;
-    static constexpr uint16_t pedal2_low_threshold = 10000;
-    static constexpr uint16_t pedal1_high_threshold = 20000;
-    static constexpr uint16_t pedal2_high_threshold = 20000;
-
     static constexpr int brake_main_adc_channel_num = 0;
+
+    // Drive calibration: ADC values that map to 0% (rest) and 100% (full press).
+    // Used for percent calc only — must lie between the fault thresholds.
+    static constexpr uint16_t pedal1_drive_rest = 2750;
+    static constexpr uint16_t pedal2_drive_rest = 2750;
+    static constexpr uint16_t pedal1_drive_full = 2050;
+    static constexpr uint16_t pedal2_drive_full = 2050;
+
+    // Fault thresholds: absolute ADC bounds — outside this band means a wiring fault.
+    // Must bracket the drive range with margin so a normal sweep stays inside.
+    static constexpr uint16_t pedal1_fault_low_adc = 1900; // open  circuit if raw < this
+    static constexpr uint16_t pedal2_fault_low_adc = 1900;
+    static constexpr uint16_t pedal1_fault_high_adc = 2900; // short circuit if raw > this
+    static constexpr uint16_t pedal2_fault_high_adc = 2900;
 
     // other calibration values
     static constexpr float agreement_threshold = 0.10f; // 10% disagreement
@@ -184,13 +193,13 @@ struct APPS_data {
 
     // constexpr values that are calculated at compiletime
     static constexpr uint16_t pedal1_range_width =
-        APPS_CONSTEXPRS::calculateRange(pedal1_high_threshold, pedal1_low_threshold);
+        APPS_CONSTEXPRS::calculateRange(pedal1_drive_full, pedal1_drive_rest);
     static constexpr uint16_t pedal2_range_width =
-        APPS_CONSTEXPRS::calculateRange(pedal2_high_threshold, pedal2_low_threshold);
+        APPS_CONSTEXPRS::calculateRange(pedal2_drive_full, pedal2_drive_rest);
     static constexpr PEDAL_SLOPE_DIRECTION pedal1_slope_direction =
-        APPS_CONSTEXPRS::PEDAL_SLOPE_DIRECTION(pedal1_high_threshold, pedal1_low_threshold);
+        APPS_CONSTEXPRS::PEDAL_SLOPE_DIRECTION(pedal1_drive_full, pedal1_drive_rest);
     static constexpr PEDAL_SLOPE_DIRECTION pedal2_slope_direction =
-        APPS_CONSTEXPRS::PEDAL_SLOPE_DIRECTION(pedal2_high_threshold, pedal2_low_threshold);
+        APPS_CONSTEXPRS::PEDAL_SLOPE_DIRECTION(pedal2_drive_full, pedal2_drive_rest);
 
     // IN PERCENTAGE, translation of input voltages to output command AFTER APPS processing
     float commandedTorquePercentage;
@@ -254,10 +263,10 @@ struct BMS_data {
     uint16_t high_cell_resistance; // × 0.01   mOhm
 
     // --- 0x3F0 (96 ms) ---
-    uint8_t pack_soc_ext;           // × 0.5  %
-    uint16_t pack_inst_voltage_ext; // × 0.1  V
-    uint16_t pack_open_voltage;     // × 0.1  V
-    uint16_t pack_current_ext;      // × 0.1  A
+    uint8_t pack_soc_ext;              // × 0.5  %
+    uint16_t pack_inst_voltage_ext;    // × 0.1  V
+    uint16_t pack_open_voltage = 2800; // × 0.1  V
+    uint16_t pack_current_ext;         // × 0.1  A
 
     // --- 0x3F1 (1008 ms) ---
     uint16_t pack_resistance;  // × 0.001  Ohm
@@ -291,8 +300,8 @@ struct BMS_data {
 
 struct VSM_Data {
 
-    static constexpr float nominal_bus_votlage = 302;
-    static constexpr int RTDS_sound_length = 200;
+    static constexpr float nominal_bus_votlage = 280;
+    static constexpr int RTDS_sound_length = 20;
 
     /**
      * @brief maximum voltage allowed across all inverters without throwing critical fault

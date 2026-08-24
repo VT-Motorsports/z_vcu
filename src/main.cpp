@@ -42,10 +42,6 @@ int main(void) {
         return -2;
     }
 
-    hardware.horn_signal.set(1);
-    k_msleep(20);
-    hardware.horn_signal.set(0);
-
     start_apps_task(&vehicle, &hardware);
     start_diagnostics_task(&system, &hardware, &vehicle);
     start_logger_task(&system, &hardware, &vehicle);
